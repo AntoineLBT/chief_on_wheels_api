@@ -2,8 +2,11 @@ asgiref==3.10.0
 asttokens==3.0.1
 black==25.11.0
 click==8.3.1
+coverage==7.12.0
 decorator==5.2.1
 Django==5.2.8
+django-extensions==4.1
+djangorestframework==3.16.1
 executing==2.2.1
 flake8==7.3.0
 ipdb==0.13.13
@@ -30,4 +33,3 @@ sqlparse==0.5.3
 stack-data==0.6.3
 traitlets==5.14.3
 wcwidth==0.2.14
-coverage

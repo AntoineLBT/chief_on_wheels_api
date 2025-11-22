@@ -1,6 +1,8 @@
 from django.db import models
-from .constants import RestaurantType, OrderIngredientActionType
+
 from users.models import User
+
+from .constants import OrderIngredientActionType, RestaurantType
 
 
 class Restaurant(models.Model):

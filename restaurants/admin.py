@@ -1,15 +1,7 @@
 from django.contrib import admin
 
-from .models import (
-    OrderIngredient,
-    OrderRecipe,
-    RecipeIngredient,
-    Restaurant,
-    Shift,
-    Order,
-    Recipe,
-    Ingredient,
-)
+from .models import (Ingredient, Order, OrderIngredient, OrderRecipe, Recipe,
+                     RecipeIngredient, Restaurant, Shift)
 
 
 @admin.register(Restaurant)

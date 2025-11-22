@@ -2,6 +2,7 @@ from django.test import TestCase
 
 from restaurants.constants import RestaurantType
 from restaurants.tests.fixtures import RestaurantFixture
+
 from ..models import Restaurant
 
 

@@ -1,6 +1,8 @@
 from datetime import date, datetime
+
 from restaurants.constants import RestaurantType
 from users.tests.fixtures import UserFixture
+
 from ..models import Ingredient, Order, OrderRecipe, Recipe, Restaurant, Shift
 
 
