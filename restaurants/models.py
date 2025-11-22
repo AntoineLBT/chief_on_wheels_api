@@ -22,15 +22,24 @@ class Order(models.Model):
     customer_name = models.CharField(max_length=255)
     picking_time = models.DateTimeField()
 
+    def __str__(self):
+        return f"{self.customer_name}_{self.picking_time}"
+
 
 class Recipe(models.Model):
     name = models.CharField(max_length=255)
     price = models.FloatField()
 
+    def __str__(self):
+        return self.name
+
 
 class Ingredient(models.Model):
     name = models.CharField(max_length=255)
     price_by_kg = models.FloatField()
+
+    def __str__(self):
+        return self.name
 
 
 class RecipeIngredient(models.Model):
@@ -42,6 +51,9 @@ class RecipeIngredient(models.Model):
 class OrderRecipe(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.recipe}_{self.order}"
 
 
 class OrderIngredient(models.Model):
