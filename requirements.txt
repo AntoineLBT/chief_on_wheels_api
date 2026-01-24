@@ -33,3 +33,4 @@ sqlparse==0.5.3
 stack-data==0.6.3
 traitlets==5.14.3
 wcwidth==0.2.14
+djangorestframework-simplejwt==5.5.1

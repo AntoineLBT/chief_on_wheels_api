@@ -13,7 +13,9 @@ class TestUserRoute(TestCase, UserFixture):
         user.first_name = "Alan"
         user.save()
 
-        response = self.client.get("/users/")
+        token = self.any_token(user)
+
+        response = self.client.get("/users/", HTTP_AUTHORIZATION=f"Bearer {token}")
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["first_name"] == "Alan"
@@ -24,6 +26,30 @@ class TestUserRoute(TestCase, UserFixture):
         data["first_name"] = "toto"
 
         response = self.client.post("/users/", data=data)
-
         assert response.status_code == 201
         assert response.json()["first_name"] == "toto"
+
+    def test_user_login(self):
+        user = self.any_user()
+
+        response = self.client.post(
+            "/users/login/", data={"username": user.username, "password": "password"}
+        )
+        assert response.status_code == 200
+        assert "access" in response.json()
+        assert "refresh" in response.json()
+        assert response.json()["user"]["username"] == user.username
+
+    def test_user_refresh(self):
+        user = self.any_user()
+
+        login_response = self.client.post(
+            "/users/login/", data={"username": user.username, "password": "password"}
+        )
+        refresh_token = login_response.json()["refresh"]
+
+        refresh_response = self.client.post(
+            "/users/refresh/", data={"refresh": refresh_token}
+        )
+        assert refresh_response.status_code == 200
+        assert "access" in refresh_response.json()
