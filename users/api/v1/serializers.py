@@ -39,3 +39,17 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class TokenRefreshResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()

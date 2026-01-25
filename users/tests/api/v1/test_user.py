@@ -29,44 +29,6 @@ class TestUserRoute(TestCase, UserFixture):
         assert response.status_code == 201
         assert response.json()["first_name"] == "toto"
 
-    def test_user_login(self):
-        user = self.any_user()
-
-        response = self.client.post(
-            "/users/login/", data={"username": user.username, "password": "password"}
-        )
-        assert response.status_code == 200
-        assert "access" in response.json()
-        assert "refresh" in response.json()
-        assert response.json()["user"]["username"] == user.username
-
-    def test_user_login_invalid_credentials(self):
-        response = self.client.post(
-            "/users/login/", data={"username": "nonexistent", "password": "wrongpass"}
-        )
-        assert response.status_code == 401
-        assert response.json()["detail"] == "Invalid credentials"
-
-    def test_user_refresh(self):
-        user = self.any_user()
-
-        login_response = self.client.post(
-            "/users/login/", data={"username": user.username, "password": "password"}
-        )
-        refresh_token = login_response.json()["refresh"]
-
-        refresh_response = self.client.post(
-            "/users/refresh/", data={"refresh": refresh_token}
-        )
-        assert refresh_response.status_code == 200
-        assert "access" in refresh_response.json()
-
-    def test_user_refresh_invalid_token(self):
-        refresh_response = self.client.post(
-            "/users/refresh/", data={"refresh": "invalidtoken"}
-        )
-        assert refresh_response.status_code == 401
-
     def test_user_update(self):
         user = self.any_user()
         token = self.any_token(user)
@@ -77,3 +39,63 @@ class TestUserRoute(TestCase, UserFixture):
         )
         assert response.status_code == 200
         assert response.json()["first_name"] == "NewName"
+
+
+class TestAuthRoute(TestCase, UserFixture):
+
+    client_class = APIClient
+
+    def test_user_login(self):
+        user = self.any_user()
+
+        response = self.client.post(
+            "/auth/login/", data={"username": user.username, "password": "password"}
+        )
+        assert response.status_code == 200
+        assert "access" in response.json()
+        assert "refresh" in response.json()
+
+    def test_user_login_invalid_credentials(self):
+        response = self.client.post(
+            "/auth/login/", data={"username": "nonexistent", "password": "wrongpass"}
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid credentials"
+
+    def test_user_login_unexpected_field(self):
+        response = self.client.post(
+            "/auth/login/",
+            data={
+                "username": "nonexistent",
+                "password": "wrongpass",
+                "firstname": "perlinpinpin",
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Unexpected field: firstname"
+
+    def test_user_refresh(self):
+        user = self.any_user()
+
+        login_response = self.client.post(
+            "/auth/login/", data={"username": user.username, "password": "password"}
+        )
+        refresh_token = login_response.json()["refresh"]
+
+        refresh_response = self.client.post(
+            "/auth/refresh/", data={"refresh": refresh_token}
+        )
+        assert refresh_response.status_code == 200
+        assert "access" in refresh_response.json()
+
+    def test_user_refresh_invalid_token(self):
+        refresh_response = self.client.post(
+            "/auth/refresh/", data={"refresh": "invalidtoken"}
+        )
+        assert refresh_response.status_code == 401
+
+    def test_user_refresh_unexpected_field(self):
+        refresh_response = self.client.post(
+            "/auth/refresh/", data={"refresh": "invalidtoken", "extra": "field"}
+        )
+        assert refresh_response.status_code == 400
