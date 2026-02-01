@@ -1,15 +1,18 @@
 from datetime import date, datetime
 
 from restaurants.constants import RestaurantType
+from users.models import User
 from users.tests.fixtures import UserFixture
 
 from ..models import Ingredient, Order, OrderRecipe, Recipe, Restaurant, Shift
 
 
 class RestaurantFixture(UserFixture):
-    def any_restaurant(self):
+    def any_restaurant(self, owner: User | None = None):
         return Restaurant.objects.create(
-            name="MyFoodTruck", type=RestaurantType.PIZZERIA, owner=self.any_user()
+            name="MyFoodTruck",
+            type=RestaurantType.PIZZERIA,
+            owner=owner or self.any_user(),
         )
 
 
@@ -29,9 +32,11 @@ class ShiftFixture(RestaurantFixture):
 
 class OrderFixture(ShiftFixture):
 
-    def any_order(self):
+    def any_order(self, restaurant: Restaurant | None = None):
         return Order.objects.create(
-            shift=self.any_shift(), customer_name="Jean", picking_time=datetime.now()
+            shift=self.any_shift(restaurant),
+            customer_name="Jean",
+            picking_time=datetime.now(),
         )
 
 

@@ -16,7 +16,7 @@ class Restaurant(models.Model):
 
 class Shift(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
-    date = models.DateField()
+    date = models.DateTimeField()
 
 
 class Order(models.Model):
@@ -29,6 +29,9 @@ class Order(models.Model):
 
 
 class Recipe(models.Model):
+    restaurant = models.ForeignKey(
+        Restaurant, on_delete=models.CASCADE, null=True, blank=True
+    )
     name = models.CharField(max_length=255)
     price = models.FloatField()
 
@@ -37,6 +40,9 @@ class Recipe(models.Model):
 
 
 class Ingredient(models.Model):
+    restaurant = models.ForeignKey(
+        Restaurant, on_delete=models.CASCADE, null=True, blank=True
+    )
     name = models.CharField(max_length=255)
     price_by_kg = models.FloatField()
 

@@ -1,16 +1,21 @@
+from datetime import datetime
+
 from ..models import User
 
 
 class UserFixture:
 
     def any_user_data(self):
+
+        now = datetime.now()
+
         return {
             "first_name": "Francky",
             "last_name": "Pizza",
             "email": "francky.pizza@mail.com",
             "phone": "+33123456789",
             "password": "password",
-            "username": "francky_pizza",
+            "username": f"francky_pizza_{now.microsecond}",
             "is_active": True,
         }
 
