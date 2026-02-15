@@ -29,9 +29,7 @@ class Order(models.Model):
 
 
 class Recipe(models.Model):
-    restaurant = models.ForeignKey(
-        Restaurant, on_delete=models.CASCADE, null=True, blank=True
-    )
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     price = models.FloatField()
 

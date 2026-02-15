@@ -1,72 +1,66 @@
-from datetime import datetime, timedelta
-
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from restaurants.tests.fixtures import ShiftFixture
+from restaurants.tests.fixtures import RecipeFixture
 
 
-class TestShiftList(TestCase, ShiftFixture):
+class TestRecipeList(TestCase, RecipeFixture):
 
     client_class = APIClient
 
-    def test_shift_list_requires_authentication(self):
-        response = self.client.get("/restaurants/1/shifts/")
+    def test_recipe_list_requires_authentication(self) -> None:
+        response = self.client.get("/restaurants/1/recipes/")
         assert response.status_code == 401
 
-    def test_shift_list(self):
+    def test_recipe_list(self) -> None:
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        shift = self.any_shift(restaurant)
-        now = datetime.now()
-        shift.date = now
-        shift.save()
+        recipe = self.any_recipe(with_restaurant=restaurant)
 
         token = self.any_token(user)
 
         response = self.client.get(
-            f"/restaurants/{restaurant.pk}/shifts/",
+            f"/restaurants/{restaurant.pk}/recipes/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert now.isoformat() in response.json()[0]["date"]
+        assert response.json()[0]["pk"] == recipe.pk
 
 
-class TestShiftCreate(TestCase, ShiftFixture):
+class TestRecipeCreate(TestCase, RecipeFixture):
 
     client_class = APIClient
 
-    def test_shift_create(self):
+    def test_recipe_create(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
         token = self.any_token(user)
 
-        data = {"date": datetime.now().date().isoformat(), "restaurant": restaurant.pk}
+        data = {"name": "margharita", "price": 10, "restaurant": restaurant.pk}
 
         response = self.client.post(
-            f"/restaurants/{restaurant.pk}/shifts/",
+            f"/restaurants/{restaurant.pk}/recipes/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 201
-        assert "date" in response.json()
-        assert response.json()["restaurant"] == restaurant.pk
+        assert "name" in response.json()
 
-    def test_shift_create__owner_only(self):
+    def test_recipe_create__owner_only(self):
         owner = self.any_user()
         owner.username = "Proprio"
         owner.save()
         restaurant = self.any_restaurant(owner)
 
-        data = {"date": datetime.now().date().isoformat(), "restaurant": restaurant.pk}
+        data = {"name": "margharita", "price": 10, "restaurant": restaurant.pk}
 
         user = self.any_user()
         token = self.any_token(user)
         response = self.client.post(
-            f"/restaurants/{restaurant.pk}/shifts/",
+            f"/restaurants/{restaurant.pk}/recipes/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -74,43 +68,40 @@ class TestShiftCreate(TestCase, ShiftFixture):
         assert response.status_code == 404
 
 
-class TestShiftUpdate(TestCase, ShiftFixture):
+class TestRecipeUpdate(TestCase, RecipeFixture):
 
     client_class = APIClient
 
-    def test_shift_update(self):
+    def test_recipe_update(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        shift = self.any_shift(restaurant)
+        recipe = self.any_recipe(restaurant)
         token = self.any_token(user)
 
-        new_date = shift.date + timedelta(days=2)
-        data = {"date": new_date.isoformat(), "restaurant": restaurant.pk}
+        data = {"name": recipe.name, "price": 42, "restaurant": restaurant.pk}
 
         response = self.client.patch(
-            f"/restaurants/{restaurant.pk}/shifts/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/recipes/{recipe.pk}/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 200
-        assert "date" in response.json()
-        assert new_date.isoformat() in response.json()["date"]
-        assert response.json()["restaurant"] == restaurant.pk
+        assert response.json()["price"] == 42
 
-    def test_shift_update__owner_only(self):
+    def test_recipe_update__owner_only(self):
         owner = self.any_user()
+        owner.username = "Proprio"
+        owner.save()
         restaurant = self.any_restaurant(owner)
-        shift = self.any_shift(restaurant)
+        recipe = self.any_recipe(restaurant)
+
+        data = {"name": recipe.name, "price": 42, "restaurant": restaurant.pk}
 
         user = self.any_user()
         token = self.any_token(user)
-
-        new_date = shift.date + timedelta(days=2)
-        data = {"date": new_date.isoformat(), "restaurant": restaurant.pk}
-
         response = self.client.patch(
-            f"/restaurants/{restaurant.pk}/shifts/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/recipes/{recipe.pk}/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -118,18 +109,18 @@ class TestShiftUpdate(TestCase, ShiftFixture):
         assert response.status_code == 404
 
 
-class TestDeleteShift(TestCase, ShiftFixture):
+class TestDeleteRecipe(TestCase, RecipeFixture):
 
     client_class = APIClient
 
     def test_shift_delete(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        shift = self.any_shift(restaurant)
+        shift = self.any_recipe(restaurant)
         token = self.any_token(user)
 
         response = self.client.delete(
-            f"/restaurants/{restaurant.pk}/shifts/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/recipes/{shift.pk}/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
@@ -138,13 +129,13 @@ class TestDeleteShift(TestCase, ShiftFixture):
     def test_shift_delete__owner_only(self):
         owner = self.any_user()
         restaurant = self.any_restaurant(owner)
-        shift = self.any_shift(restaurant)
+        shift = self.any_recipe(restaurant)
 
         user = self.any_user()
         token = self.any_token(user)
 
         response = self.client.delete(
-            f"/restaurants/{restaurant.pk}/shifts/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/recipes/{shift.pk}/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 

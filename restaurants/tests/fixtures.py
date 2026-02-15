@@ -40,10 +40,13 @@ class OrderFixture(ShiftFixture):
         )
 
 
-class RecipeFixture:
+class RecipeFixture(RestaurantFixture):
 
-    def any_recipe(self):
-        return Recipe.objects.create(name="calzone", price=12.5)
+    def any_recipe(self, with_restaurant: Restaurant | None = None):
+
+        restaurant = with_restaurant or self.any_restaurant()
+
+        return Recipe.objects.create(name="calzone", price=12.5, restaurant=restaurant)
 
 
 class IngredientFixture:

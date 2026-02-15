@@ -39,10 +39,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         ).select_related("shift", "shift__restaurant")
 
 
-class RecipeViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
 
     def get_queryset(self):
         return Recipe.objects.filter(
-            shift__restaurant__owner=self.request.user
-        ).select_related("shift", "shift__restaurant")
+            restaurant__owner=self.request.user
+        ).select_related("restaurant")
