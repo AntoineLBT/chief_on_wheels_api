@@ -1,12 +1,8 @@
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested.routers import NestedDefaultRouter
 
-from restaurants.api.v1.views import (
-    OrderViewSet,
-    RecipeViewSet,
-    RestaurantViewSet,
-    ShiftViewSet,
-)
+from restaurants.api.v1.views import (OrderViewSet, RecipeViewSet,
+                                      RestaurantViewSet, ShiftViewSet)
 
 router = DefaultRouter()
 router.register(r"restaurants", RestaurantViewSet, basename="restaurant")

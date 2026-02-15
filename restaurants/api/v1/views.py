@@ -1,12 +1,10 @@
 from rest_framework import viewsets
+from rest_framework.exceptions import NotFound
 
 from restaurants.api.v1.mixins import RestaurantOwnerPermissionMixin
-from restaurants.api.v1.serializers import (
-    OrderSerializer,
-    RecipeSerializer,
-    RestaurantSerializer,
-    ShiftSerializer,
-)
+from restaurants.api.v1.serializers import (OrderSerializer, RecipeSerializer,
+                                            RestaurantSerializer,
+                                            ShiftSerializer)
 from restaurants.models import Order, Recipe, Restaurant, Shift
 
 
@@ -29,8 +27,22 @@ class ShiftViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
         )
 
 
-class OrderViewSet(viewsets.ModelViewSet):
+class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = OrderSerializer
+
+    def check_restaurant_owner(self, restaurant, user):
+        if restaurant.owner != user:
+            raise NotFound("Restaurant not found")
+
+    def perform_create(self, serializer):
+        restaurant = serializer.validated_data.get("shift").restaurant
+        self.check_restaurant_owner(restaurant, self.request.user)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        restaurant = serializer.validated_data.get("shift").restaurant
+        self.check_restaurant_owner(restaurant, self.request.user)
+        serializer.save()
 
     def get_queryset(self):
         shift_pk = self.kwargs.get("shift_pk")
