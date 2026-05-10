@@ -7,3 +7,5 @@ settings.cpython*
 .pytest_cache/
 .coverage
 htmlcov/
+.DS_Store
+.mypy_cache/

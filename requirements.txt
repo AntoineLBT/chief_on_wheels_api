@@ -38,3 +38,4 @@ traitlets==5.14.3
 wcwidth==0.2.14
 drf-spectacular==0.29.0
 dotenv==0.9.9
+psycopg2-binary

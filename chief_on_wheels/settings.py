@@ -84,8 +84,12 @@ WSGI_APPLICATION = "chief_on_wheels.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config.get("POSTGRES_DB"),
+        "USER": config.get("POSTGRES_USER"),
+        "PASSWORD": config.get("POSTGRES_PASSWORD"),
+        "HOST": config.get("POSTGRES_HOST", "localhost"),
+        "PORT": config.get("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -116,7 +120,7 @@ LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "Europe/Paris"
 
-USE_TZ = False
+USE_TZ = True
 
 USE_I18N = True
 
