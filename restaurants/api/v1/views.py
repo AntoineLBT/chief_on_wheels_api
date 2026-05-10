@@ -1,3 +1,5 @@
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 from rest_framework import viewsets
 from rest_framework.exceptions import NotFound
 
@@ -46,9 +48,14 @@ class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         shift_pk = self.kwargs.get("shift_pk")
-        return Order.objects.filter(
-            shift__pk=shift_pk, shift__restaurant__owner=self.request.user
-        ).select_related("shift", "shift__restaurant")
+
+        return (
+            Order.objects.filter(
+                shift__pk=shift_pk, shift__restaurant__owner=self.request.user
+            )
+            .select_related("shift", "shift__restaurant")
+            .annotate(amount=Coalesce(Sum("orderrecipe__recipe__price"), 0.0))
+        )
 
 
 class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):

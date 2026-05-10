@@ -2,10 +2,12 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from restaurants.tests.fixtures import OrderFixture
+from restaurants.tests.fixtures import OrderFixture, RecipeFixture
+
+from ....models import OrderRecipe
 
 
-class TestOrderList(TestCase, OrderFixture):
+class TestOrderList(TestCase, OrderFixture, RecipeFixture):
 
     client_class = APIClient
 
@@ -29,8 +31,26 @@ class TestOrderList(TestCase, OrderFixture):
 
         assert response.status_code == 200
         assert len(response.json()) == 1
+
         assert "picking_time" in response.json()[0]
         assert "customer_name" in response.json()[0]
+        assert "amount" in response.json()[0]
+
+    def test_order_list_amount(self):
+        owner = self.any_user()
+        restaurant = self.any_restaurant(owner)
+        order = self.any_order(restaurant)
+        token = self.any_token(owner)
+        recipe = self.any_recipe(restaurant)
+        OrderRecipe.objects.create(order=order, recipe=recipe)
+
+        response = self.client.get(
+            f"/restaurants/{order.shift.restaurant.pk}/shifts/{order.shift.pk}/orders/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 200
+        assert response.json()[0]["amount"] == recipe.price
 
 
 class TestOrderCreate(TestCase, OrderFixture):

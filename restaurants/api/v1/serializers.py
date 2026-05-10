@@ -26,10 +26,13 @@ class ShiftSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+
+    amount = serializers.FloatField(read_only=True)
+
     class Meta:
         model = Order
-        fields = ["pk", "shift", "customer_name", "picking_time", "status"]
-        read_only_fields = ["pk"]
+        fields = ["pk", "shift", "customer_name", "picking_time", "status", "amount"]
+        read_only_fields = ["pk", "amount"]
 
 
 class RecipeSerializer(serializers.ModelSerializer):
