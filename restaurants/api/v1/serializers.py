@@ -21,14 +21,14 @@ class RestaurantSerializer(serializers.ModelSerializer):
 class ShiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shift
-        fields = ["pk", "restaurant", "date"]
+        fields = ["pk", "restaurant", "date", "ended_at"]
         read_only_fields = ["pk"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ["pk", "shift", "customer_name", "picking_time"]
+        fields = ["pk", "shift", "customer_name", "picking_time", "status"]
         read_only_fields = ["pk"]
 
 

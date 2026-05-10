@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from restaurants.tests.fixtures import ShiftFixture
@@ -11,14 +12,17 @@ class TestShiftList(TestCase, ShiftFixture):
     client_class = APIClient
 
     def test_shift_list_requires_authentication(self):
-        response = self.client.get("/restaurants/1/shifts/")
+
+        restaurant = self.any_restaurant()
+
+        response = self.client.get(f"/restaurants/{restaurant.pk}/shifts/")
         assert response.status_code == 401
 
     def test_shift_list(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
         shift = self.any_shift(restaurant)
-        now = datetime.now()
+        now = timezone.now()
         shift.date = now
         shift.save()
 
@@ -31,7 +35,9 @@ class TestShiftList(TestCase, ShiftFixture):
 
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert now.isoformat() in response.json()[0]["date"]
+        assert datetime.fromisoformat(
+            response.json()[0]["date"]
+        ) == datetime.fromisoformat(str(now))
 
 
 class TestShiftCreate(TestCase, ShiftFixture):
@@ -43,7 +49,7 @@ class TestShiftCreate(TestCase, ShiftFixture):
         restaurant = self.any_restaurant(user)
         token = self.any_token(user)
 
-        data = {"date": datetime.now().date().isoformat(), "restaurant": restaurant.pk}
+        data = {"date": timezone.now().isoformat(), "restaurant": restaurant.pk}
 
         response = self.client.post(
             f"/restaurants/{restaurant.pk}/shifts/",
@@ -53,7 +59,7 @@ class TestShiftCreate(TestCase, ShiftFixture):
 
         assert response.status_code == 201
         assert "date" in response.json()
-        assert response.json()["restaurant"] == restaurant.pk
+        assert response.json()["restaurant"] == str(restaurant.pk)
 
     def test_shift_create__owner_only(self):
         owner = self.any_user()
@@ -61,7 +67,7 @@ class TestShiftCreate(TestCase, ShiftFixture):
         owner.save()
         restaurant = self.any_restaurant(owner)
 
-        data = {"date": datetime.now().date().isoformat(), "restaurant": restaurant.pk}
+        data = {"date": timezone.now().date().isoformat(), "restaurant": restaurant.pk}
 
         user = self.any_user()
         token = self.any_token(user)
@@ -95,8 +101,10 @@ class TestShiftUpdate(TestCase, ShiftFixture):
 
         assert response.status_code == 200
         assert "date" in response.json()
-        assert new_date.isoformat() in response.json()["date"]
-        assert response.json()["restaurant"] == restaurant.pk
+        assert datetime.fromisoformat(
+            response.json()["date"]
+        ) == datetime.fromisoformat(str(new_date))
+        assert response.json()["restaurant"] == str(restaurant.pk)
 
     def test_shift_update__owner_only(self):
         owner = self.any_user()

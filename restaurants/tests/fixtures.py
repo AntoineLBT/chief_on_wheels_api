@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from django.utils import timezone
 
 from restaurants.constants import RestaurantType
 from users.models import User
@@ -19,7 +19,7 @@ class RestaurantFixture(UserFixture):
 class ShiftFixture(RestaurantFixture):
 
     def any_shift_data(self):
-        return {"restaurant": None, "date": date.today()}
+        return {"restaurant": None, "date": timezone.now()}
 
     def any_shift(self, restaurant: Restaurant | None = None):
 
@@ -36,7 +36,7 @@ class OrderFixture(ShiftFixture):
         return Order.objects.create(
             shift=self.any_shift(restaurant),
             customer_name="Jean",
-            picking_time=datetime.now(),
+            picking_time=timezone.now(),
         )
 
 
@@ -49,10 +49,15 @@ class RecipeFixture(RestaurantFixture):
         return Recipe.objects.create(name="calzone", price=12.5, restaurant=restaurant)
 
 
-class IngredientFixture:
+class IngredientFixture(RestaurantFixture):
 
-    def any_ingredient(self, name: str | None = None):
-        return Ingredient.objects.create(name=name or "sauce tomate", price_by_kg=5.4)
+    def any_ingredient(
+        self, name: str | None = None, with_restaurant: Restaurant | None = None
+    ):
+        restaurant = with_restaurant or self.any_restaurant()
+        return Ingredient.objects.create(
+            name=name or "sauce tomate", price_by_kg=5.4, restaurant=restaurant
+        )
 
 
 class OrderRecipeFixture(OrderFixture, RecipeFixture):

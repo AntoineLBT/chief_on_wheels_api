@@ -1,4 +1,4 @@
-from datetime import datetime
+from django.utils import timezone
 
 from ..models import User
 
@@ -7,7 +7,7 @@ class UserFixture:
 
     def any_user_data(self):
 
-        now = datetime.now()
+        now = timezone.now()
 
         return {
             "first_name": "Francky",

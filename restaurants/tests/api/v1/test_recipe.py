@@ -26,7 +26,7 @@ class TestRecipeList(TestCase, RecipeFixture):
 
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert response.json()[0]["pk"] == recipe.pk
+        assert response.json()[0]["pk"] == str(recipe.pk)
 
 
 class TestRecipeCreate(TestCase, RecipeFixture):

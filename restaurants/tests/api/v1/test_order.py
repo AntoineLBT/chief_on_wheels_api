@@ -1,6 +1,5 @@
-from datetime import datetime
-
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from restaurants.tests.fixtures import OrderFixture
@@ -47,7 +46,7 @@ class TestOrderCreate(TestCase, OrderFixture):
         data = {
             "shift": shift.pk,
             "customer_name": "Patrick",
-            "picking_time": datetime.now(),
+            "picking_time": timezone.now(),
         }
 
         response = self.client.post(
@@ -58,7 +57,7 @@ class TestOrderCreate(TestCase, OrderFixture):
 
         assert response.status_code == 201
         assert "customer_name" in response.json()
-        assert response.json()["shift"] == shift.pk
+        assert response.json()["shift"] == str(shift.pk)
 
     def test_order_create__onwer_only(self):
         user = self.any_user()
@@ -68,7 +67,7 @@ class TestOrderCreate(TestCase, OrderFixture):
         data = {
             "shift": shift.pk,
             "customer_name": "Patrick",
-            "picking_time": datetime.now(),
+            "picking_time": timezone.now(),
         }
 
         user = self.any_user()
@@ -95,7 +94,7 @@ class TestOrderUpdate(TestCase, OrderFixture):
         data = {
             "shift": order.shift.pk,
             "customer_name": "Bernardo",
-            "picking_time": datetime.now(),
+            "picking_time": timezone.now(),
         }
 
         response = self.client.patch(
@@ -115,7 +114,7 @@ class TestOrderUpdate(TestCase, OrderFixture):
         data = {
             "shift": order.shift.pk,
             "customer_name": "Patrick",
-            "picking_time": datetime.now(),
+            "picking_time": timezone.now(),
         }
 
         user = self.any_user()
