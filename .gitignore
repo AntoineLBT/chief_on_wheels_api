@@ -9,3 +9,4 @@ settings.cpython*
 htmlcov/
 .DS_Store
 .mypy_cache/
+.dump/
