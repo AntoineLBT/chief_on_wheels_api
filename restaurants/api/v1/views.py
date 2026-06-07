@@ -9,11 +9,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from restaurants.api.v1.mixins import RestaurantOwnerPermissionMixin
-from restaurants.api.v1.serializers import (OrderSerializer, RecipeSerializer,
+from restaurants.api.v1.serializers import (IngredientSerializer,
+                                            OrderSerializer, RecipeSerializer,
                                             RestaurantSerializer,
                                             ShiftSerializer,
                                             SyncShiftSerializer)
-from restaurants.models import Order, Recipe, Restaurant, Shift
+from restaurants.models import Ingredient, Order, Recipe, Restaurant, Shift
 
 
 class RestaurantViewSet(viewsets.ModelViewSet):
@@ -68,7 +69,18 @@ class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
 
     def get_queryset(self):
-        return Recipe.objects.filter(
+        return (
+            Recipe.objects.filter(restaurant__owner=self.request.user)
+            .select_related("restaurant")
+            .prefetch_related("recipeingredient_set")
+        )
+
+
+class IngredientViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
+    serializer_class = IngredientSerializer
+
+    def get_queryset(self):
+        return Ingredient.objects.filter(
             restaurant__owner=self.request.user
         ).select_related("restaurant")
 

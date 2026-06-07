@@ -1,54 +1,47 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from restaurants.tests.fixtures import RecipeFixture, RecipeIngredientFixture
+from restaurants.tests.fixtures import IngredientFixture
 
 
-class TestRecipeList(TestCase, RecipeIngredientFixture):
+class TestIngredientList(TestCase, IngredientFixture):
 
     client_class = APIClient
 
-    def test_recipe_list_requires_authentication(self) -> None:
-        response = self.client.get("/restaurants/1/recipes/")
+    def test_ingredient_list_requires_authentication(self) -> None:
+        response = self.client.get("/restaurants/1/ingredients/")
         assert response.status_code == 401
 
-    def test_recipe_list(self) -> None:
+    def test_ingredient_list(self) -> None:
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        recipe = self.any_recipe(with_restaurant=restaurant)
-
-        recipe_ingredient = self.any_recipe_ingredient(recipe)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
 
         token = self.any_token(user)
 
         response = self.client.get(
-            f"/restaurants/{restaurant.pk}/recipes/",
+            f"/restaurants/{restaurant.pk}/ingredients/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert response.json()[0]["pk"] == str(recipe.pk)
-
-        assert len(response.json()[0]["recipe_ingredients"]) == 1
-        assert response.json()[0]["recipe_ingredients"][0]["pk"] == str(
-            recipe_ingredient.pk
-        )
+        assert response.json()[0]["pk"] == str(ingredient.pk)
 
 
-class TestRecipeCreate(TestCase, RecipeFixture):
+class TestIngredientCreate(TestCase, IngredientFixture):
 
     client_class = APIClient
 
-    def test_recipe_create(self):
+    def test_ingredient_create(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
         token = self.any_token(user)
 
-        data = {"name": "margharita", "price": 10, "restaurant": restaurant.pk}
+        data = {"name": "sauce_tomate", "price_by_kg": 10, "restaurant": restaurant.pk}
 
         response = self.client.post(
-            f"/restaurants/{restaurant.pk}/recipes/",
+            f"/restaurants/{restaurant.pk}/ingredients/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -56,18 +49,18 @@ class TestRecipeCreate(TestCase, RecipeFixture):
         assert response.status_code == 201
         assert "name" in response.json()
 
-    def test_recipe_create__owner_only(self):
+    def test_ingredient_create__owner_only(self):
         owner = self.any_user()
         owner.username = "Proprio"
         owner.save()
         restaurant = self.any_restaurant(owner)
 
-        data = {"name": "margharita", "price": 10, "restaurant": restaurant.pk}
+        data = {"name": "sauce_tomate", "price_by_kg": 10, "restaurant": restaurant.pk}
 
         user = self.any_user()
         token = self.any_token(user)
         response = self.client.post(
-            f"/restaurants/{restaurant.pk}/recipes/",
+            f"/restaurants/{restaurant.pk}/ingredients/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -75,40 +68,40 @@ class TestRecipeCreate(TestCase, RecipeFixture):
         assert response.status_code == 404
 
 
-class TestRecipeUpdate(TestCase, RecipeFixture):
+class TestIngredientUpdate(TestCase, IngredientFixture):
 
     client_class = APIClient
 
-    def test_recipe_update(self):
+    def test_ingredient_update(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        recipe = self.any_recipe(restaurant)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
         token = self.any_token(user)
 
-        data = {"name": recipe.name, "price": 42, "restaurant": restaurant.pk}
+        data = {"name": ingredient.name, "price_by_kg": 42, "restaurant": restaurant.pk}
 
         response = self.client.patch(
-            f"/restaurants/{restaurant.pk}/recipes/{recipe.pk}/",
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 200
-        assert response.json()["price"] == 42
+        assert response.json()["price_by_kg"] == 42
 
-    def test_recipe_update__owner_only(self):
+    def test_ingredient_update__owner_only(self):
         owner = self.any_user()
         owner.username = "Proprio"
         owner.save()
         restaurant = self.any_restaurant(owner)
-        recipe = self.any_recipe(restaurant)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
 
-        data = {"name": recipe.name, "price": 42, "restaurant": restaurant.pk}
+        data = {"name": ingredient.name, "price_by_kg": 42, "restaurant": restaurant.pk}
 
         user = self.any_user()
         token = self.any_token(user)
         response = self.client.patch(
-            f"/restaurants/{restaurant.pk}/recipes/{recipe.pk}/",
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
             data=data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -116,18 +109,18 @@ class TestRecipeUpdate(TestCase, RecipeFixture):
         assert response.status_code == 404
 
 
-class TestDeleteRecipe(TestCase, RecipeFixture):
+class TestDeleteingredient(TestCase, IngredientFixture):
 
     client_class = APIClient
 
     def test_shift_delete(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        shift = self.any_recipe(restaurant)
+        shift = self.any_ingredient(with_restaurant=restaurant)
         token = self.any_token(user)
 
         response = self.client.delete(
-            f"/restaurants/{restaurant.pk}/recipes/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/ingredients/{shift.pk}/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
@@ -136,13 +129,13 @@ class TestDeleteRecipe(TestCase, RecipeFixture):
     def test_shift_delete__owner_only(self):
         owner = self.any_user()
         restaurant = self.any_restaurant(owner)
-        shift = self.any_recipe(restaurant)
+        shift = self.any_ingredient(with_restaurant=restaurant)
 
         user = self.any_user()
         token = self.any_token(user)
 
         response = self.client.delete(
-            f"/restaurants/{restaurant.pk}/recipes/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/ingredients/{shift.pk}/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 

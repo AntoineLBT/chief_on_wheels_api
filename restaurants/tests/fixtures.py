@@ -4,7 +4,8 @@ from restaurants.constants import RestaurantType
 from users.models import User
 from users.tests.fixtures import UserFixture
 
-from ..models import Ingredient, Order, OrderRecipe, Recipe, Restaurant, Shift
+from ..models import (Ingredient, Order, OrderRecipe, Recipe, RecipeIngredient,
+                      Restaurant, Shift)
 
 
 class RestaurantFixture(UserFixture):
@@ -57,6 +58,22 @@ class IngredientFixture(RestaurantFixture):
         restaurant = with_restaurant or self.any_restaurant()
         return Ingredient.objects.create(
             name=name or "sauce tomate", price_by_kg=5.4, restaurant=restaurant
+        )
+
+
+class RecipeIngredientFixture(RecipeFixture, IngredientFixture):
+
+    def any_recipe_ingredient(
+        self,
+        with_recipe: Recipe | None = None,
+        with_ingredient: Ingredient | None = None,
+    ) -> RecipeIngredient:
+
+        recipe = with_recipe or self.any_recipe()
+        ingredient = with_ingredient or self.any_ingredient("patate", recipe.restaurant)
+
+        return RecipeIngredient.objects.create(
+            recipe=recipe, ingredient=ingredient, quantity_in_g=100
         )
 
 

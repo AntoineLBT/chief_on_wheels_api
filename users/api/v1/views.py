@@ -9,12 +9,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import User
 
-from .serializers import (
-    LoginResponseSerializer,
-    LoginSerializer,
-    TokenRefreshResponseSerializer,
-    UserSerializer,
-)
+from .serializers import (LoginResponseSerializer, LoginSerializer,
+                          TokenRefreshResponseSerializer, UserSerializer)
 
 
 class UserViewSet(viewsets.ModelViewSet):

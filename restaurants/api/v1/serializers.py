@@ -123,10 +123,22 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ["pk", "amount"]
 
 
+class RecipeIngredientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RecipeIngredient
+        fields = ["pk", "recipe", "ingredient", "quantity_in_g"]
+        read_only_fields = ["pk"]
+
+
 class RecipeSerializer(serializers.ModelSerializer):
+
+    recipe_ingredients = RecipeIngredientSerializer(
+        many=True, read_only=True, source="recipeingredient_set"
+    )
+
     class Meta:
         model = Recipe
-        fields = ["pk", "restaurant", "name", "price"]
+        fields = ["pk", "restaurant", "name", "price", "recipe_ingredients"]
         read_only_fields = ["pk"]
 
 
@@ -134,13 +146,6 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ["pk", "restaurant", "name", "price_by_kg"]
-        read_only_fields = ["pk"]
-
-
-class RecipeIngredientSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RecipeIngredient
-        fields = ["pk", "recipe", "ingredient", "quantity_in_g"]
         read_only_fields = ["pk"]
 
 
