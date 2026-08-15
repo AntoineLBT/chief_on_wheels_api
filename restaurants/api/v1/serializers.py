@@ -1,8 +1,15 @@
 from rest_framework import serializers
 
-from restaurants.models import (Ingredient, Order, OrderIngredient,
-                                OrderRecipe, Recipe, RecipeIngredient,
-                                Restaurant, Shift)
+from restaurants.models import (
+    Ingredient,
+    Order,
+    OrderIngredient,
+    OrderRecipe,
+    Recipe,
+    RecipeIngredient,
+    Restaurant,
+    Shift,
+)
 
 
 class SyncOrderIngredientSerializer(serializers.ModelSerializer):

@@ -9,11 +9,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from restaurants.api.v1.mixins import RestaurantOwnerPermissionMixin
-from restaurants.api.v1.serializers import (IngredientSerializer,
-                                            OrderSerializer, RecipeSerializer,
-                                            RestaurantSerializer,
-                                            ShiftSerializer,
-                                            SyncShiftSerializer)
+from restaurants.api.v1.serializers import (
+    IngredientSerializer,
+    OrderSerializer,
+    RecipeSerializer,
+    RestaurantSerializer,
+    ShiftSerializer,
+    SyncShiftSerializer,
+)
 from restaurants.models import Ingredient, Order, Recipe, Restaurant, Shift
 
 
