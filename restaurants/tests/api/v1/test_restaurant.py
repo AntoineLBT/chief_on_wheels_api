@@ -41,13 +41,25 @@ class TestRestaurantCreate(TestCase, RestaurantFixture):
         user = self.any_user()
         token = self.any_token(user)
 
-        data = {"name": "NewRestaurant", "type": "PIZZERIA"}
+        data = {"name": "NewRestaurant"}
 
         response = self.client.post(
             "/restaurants/", data=data, HTTP_AUTHORIZATION=f"Bearer {token}"
         )
         assert response.status_code == 201
         assert response.json()["name"] == "NewRestaurant"
+
+    def test_restaurant_create__vat_rate_defaults_to_zero(self):
+        user = self.any_user()
+        token = self.any_token(user)
+
+        response = self.client.post(
+            "/restaurants/",
+            data={"name": "NewRestaurant"},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        assert response.status_code == 201
+        assert response.json()["vat_rate"] == "0.00"
 
 
 class TestRestaurantUpdate(TestCase, RestaurantFixture):
@@ -81,6 +93,33 @@ class TestRestaurantUpdate(TestCase, RestaurantFixture):
         )
 
         assert response.status_code == 404
+
+    def test_restaurant_update__vat_rate(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        token = self.any_token(user)
+
+        response = self.client.patch(
+            f"/restaurants/{restaurant.pk}/",
+            data={"vat_rate": "10.00"},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        assert response.status_code == 200
+        assert response.json()["vat_rate"] == "10.00"
+
+    def test_restaurant_update__vat_rate_out_of_bounds(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        token = self.any_token(user)
+
+        for vat_rate in ["-0.01", "100.01"]:
+            response = self.client.patch(
+                f"/restaurants/{restaurant.pk}/",
+                data={"vat_rate": vat_rate},
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+            assert response.status_code == 400, vat_rate
+            assert "vat_rate" in response.json()
 
 
 class TestRestaurantDelete(TestCase, RestaurantFixture):

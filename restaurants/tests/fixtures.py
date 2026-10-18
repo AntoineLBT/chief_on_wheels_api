@@ -1,6 +1,5 @@
 from django.utils import timezone
 
-from restaurants.constants import RestaurantType
 from users.models import User
 from users.tests.fixtures import UserFixture
 
@@ -12,7 +11,6 @@ class RestaurantFixture(UserFixture):
     def any_restaurant(self, owner: User | None = None):
         return Restaurant.objects.create(
             name="MyFoodTruck",
-            type=RestaurantType.PIZZERIA,
             owner=owner or self.any_user(),
         )
 
