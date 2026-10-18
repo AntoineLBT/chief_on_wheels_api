@@ -1,18 +1,22 @@
+from decimal import Decimal
 from uuid import uuid4
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from users.models import User
 
-from .constants import OrderIngredientActionType, OrderStatus, RestaurantType
+from .constants import OrderIngredientActionType, OrderStatus
 
 
 class Restaurant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     name = models.CharField(max_length=255)
-    type = models.CharField(
-        choices=RestaurantType.choices,
-        max_length=max([len(restaurant[0]) for restaurant in RestaurantType.choices]),
+    vat_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
     )
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
 

@@ -1,15 +1,8 @@
 from rest_framework import serializers
 
-from restaurants.models import (
-    Ingredient,
-    Order,
-    OrderIngredient,
-    OrderRecipe,
-    Recipe,
-    RecipeIngredient,
-    Restaurant,
-    Shift,
-)
+from restaurants.models import (Ingredient, Order, OrderIngredient,
+                                OrderRecipe, Recipe, RecipeIngredient,
+                                Restaurant, Shift)
 
 
 class SyncOrderIngredientSerializer(serializers.ModelSerializer):
@@ -109,7 +102,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ["pk", "name", "type", "owner"]
+        fields = ["pk", "name", "vat_rate", "owner"]
         read_only_fields = ["pk"]
 
 
