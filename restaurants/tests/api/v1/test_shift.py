@@ -39,6 +39,20 @@ class TestShiftList(TestCase, ShiftFixture):
             response.json()[0]["date"]
         ) == datetime.fromisoformat(str(now))
 
+    def test_shift_list__only_url_restaurant(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        shift = self.any_shift(restaurant)
+        self.any_shift(self.any_restaurant(user))
+        token = self.any_token(user)
+
+        response = self.client.get(
+            f"/restaurants/{restaurant.pk}/shifts/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert [s["pk"] for s in response.json()] == [str(shift.pk)]
+
 
 class TestShiftCreate(TestCase, ShiftFixture):
 
@@ -59,6 +73,20 @@ class TestShiftCreate(TestCase, ShiftFixture):
 
         assert response.status_code == 201
         assert "date" in response.json()
+        assert response.json()["restaurant"] == str(restaurant.pk)
+
+    def test_shift_create__restaurant_from_url(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        token = self.any_token(user)
+
+        response = self.client.post(
+            f"/restaurants/{restaurant.pk}/shifts/",
+            data={"date": timezone.now().isoformat()},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 201
         assert response.json()["restaurant"] == str(restaurant.pk)
 
     def test_shift_create__owner_only(self):
@@ -105,6 +133,21 @@ class TestShiftUpdate(TestCase, ShiftFixture):
             response.json()["date"]
         ) == datetime.fromisoformat(str(new_date))
         assert response.json()["restaurant"] == str(restaurant.pk)
+
+    def test_shift_update__partial(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        shift = self.any_shift(restaurant)
+        token = self.any_token(user)
+
+        response = self.client.patch(
+            f"/restaurants/{restaurant.pk}/shifts/{shift.pk}/",
+            data={"ended_at": timezone.now().isoformat()},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["ended_at"] is not None
 
     def test_shift_update__owner_only(self):
         owner = self.any_user()

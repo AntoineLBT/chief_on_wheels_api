@@ -29,11 +29,7 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
 class ShiftViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = ShiftSerializer
-
-    def get_queryset(self):
-        return Shift.objects.filter(restaurant__owner=self.request.user).select_related(
-            "restaurant"
-        )
+    queryset = Shift.objects.select_related("restaurant")
 
 
 class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
@@ -67,22 +63,14 @@ class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
 
 class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
-
-    def get_queryset(self):
-        return (
-            Recipe.objects.filter(restaurant__owner=self.request.user)
-            .select_related("restaurant")
-            .prefetch_related("recipeingredient_set")
-        )
+    queryset = Recipe.objects.select_related("restaurant").prefetch_related(
+        "recipeingredient_set"
+    )
 
 
 class IngredientViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = IngredientSerializer
-
-    def get_queryset(self):
-        return Ingredient.objects.filter(
-            restaurant__owner=self.request.user
-        ).select_related("restaurant")
+    queryset = Ingredient.objects.select_related("restaurant")
 
 
 class SyncView(APIView):

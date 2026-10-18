@@ -110,7 +110,7 @@ class ShiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shift
         fields = ["pk", "restaurant", "date", "ended_at"]
-        read_only_fields = ["pk"]
+        read_only_fields = ["pk", "restaurant"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -139,14 +139,14 @@ class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ["pk", "restaurant", "name", "price", "recipe_ingredients"]
-        read_only_fields = ["pk"]
+        read_only_fields = ["pk", "restaurant"]
 
 
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ["pk", "restaurant", "name", "price_by_kg"]
-        read_only_fields = ["pk"]
+        read_only_fields = ["pk", "restaurant"]
 
 
 class OrderRecipeSerializer(serializers.ModelSerializer):

@@ -1,20 +1,28 @@
+from functools import cached_property
+
 from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
 
+from restaurants.models import Restaurant
+
 
 class RestaurantOwnerPermissionMixin:
+    """Scopes a viewset nested under /restaurants/{restaurant_pk}/ to that
+    restaurant, which must belong to the requesting user."""
+
     request = Request
 
-    def check_restaurant_owner(self, restaurant, user):
-        if restaurant.owner != user:
+    @cached_property
+    def restaurant(self) -> Restaurant:
+        restaurant = Restaurant.objects.filter(
+            pk=self.kwargs["restaurant_pk"], owner=self.request.user
+        ).first()
+        if restaurant is None:
             raise NotFound("Restaurant not found")
+        return restaurant
+
+    def get_queryset(self):
+        return super().get_queryset().filter(restaurant=self.restaurant)
 
     def perform_create(self, serializer):
-        restaurant = serializer.validated_data.get("restaurant")
-        self.check_restaurant_owner(restaurant, self.request.user)
-        serializer.save()
-
-    def perform_update(self, serializer):
-        restaurant = serializer.validated_data.get("restaurant")
-        self.check_restaurant_owner(restaurant, self.request.user)
-        serializer.save()
+        serializer.save(restaurant=self.restaurant)

@@ -35,6 +35,20 @@ class TestRecipeList(TestCase, RecipeIngredientFixture):
             recipe_ingredient.pk
         )
 
+    def test_recipe_list__only_url_restaurant(self) -> None:
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        recipe = self.any_recipe(restaurant)
+        self.any_recipe(self.any_restaurant(user))
+        token = self.any_token(user)
+
+        response = self.client.get(
+            f"/restaurants/{restaurant.pk}/recipes/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert [r["pk"] for r in response.json()] == [str(recipe.pk)]
+
 
 class TestRecipeCreate(TestCase, RecipeFixture):
 
@@ -55,6 +69,20 @@ class TestRecipeCreate(TestCase, RecipeFixture):
 
         assert response.status_code == 201
         assert "name" in response.json()
+
+    def test_recipe_create__restaurant_from_url(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        token = self.any_token(user)
+
+        response = self.client.post(
+            f"/restaurants/{restaurant.pk}/recipes/",
+            data={"name": "margharita", "price": 10},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["restaurant"] == str(restaurant.pk)
 
     def test_recipe_create__owner_only(self):
         owner = self.any_user()
@@ -95,6 +123,21 @@ class TestRecipeUpdate(TestCase, RecipeFixture):
 
         assert response.status_code == 200
         assert response.json()["price"] == 42
+
+    def test_recipe_update__partial(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        recipe = self.any_recipe(restaurant)
+        token = self.any_token(user)
+
+        response = self.client.patch(
+            f"/restaurants/{restaurant.pk}/recipes/{recipe.pk}/",
+            data={"name": "regina"},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["name"] == "regina"
 
     def test_recipe_update__owner_only(self):
         owner = self.any_user()
