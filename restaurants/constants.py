@@ -10,3 +10,9 @@ class OrderStatus(models.TextChoices):
     TODO = "TODO", "todo"
     IN_PROGRESS = "IN_PROGRESS", "in_progress"
     DONE = "DONE", "done"
+
+
+class IngredientUnit(models.TextChoices):
+    KG = "KG", "kg"
+    L = "L", "l"
+    UNIT = "UNIT", "unit"

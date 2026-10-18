@@ -1,7 +1,7 @@
 from typing import cast
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import RestrictedError, Sum
 from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
 from rest_framework.exceptions import NotFound
@@ -71,6 +71,23 @@ class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
 class IngredientViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = IngredientSerializer
     queryset = Ingredient.objects.select_related("restaurant")
+
+    def destroy(self, request, *args, **kwargs):
+        ingredient = self.get_object()
+        try:
+            ingredient.delete()
+        except RestrictedError:
+            recipe_count = (
+                ingredient.recipeingredient_set.values("recipe").distinct().count()
+            )
+            return Response(
+                {
+                    "detail": "Ingredient used in recipes or orders.",
+                    "recipe_count": recipe_count,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SyncView(APIView):

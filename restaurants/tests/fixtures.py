@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from django.utils import timezone
 
+from restaurants.constants import IngredientUnit
 from users.models import User
 from users.tests.fixtures import UserFixture
 
@@ -55,7 +58,10 @@ class IngredientFixture(RestaurantFixture):
     ):
         restaurant = with_restaurant or self.any_restaurant()
         return Ingredient.objects.create(
-            name=name or "sauce tomate", price_by_kg=5.4, restaurant=restaurant
+            name=name or "sauce tomate",
+            unit=IngredientUnit.KG,
+            price_per_unit=Decimal("5.40"),
+            restaurant=restaurant,
         )
 
 

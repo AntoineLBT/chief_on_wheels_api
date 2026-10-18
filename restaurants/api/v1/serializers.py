@@ -143,10 +143,37 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class IngredientSerializer(serializers.ModelSerializer):
+
+    EXTRA_FIELDS = ["extra_price", "extra_quantity"]
+
     class Meta:
         model = Ingredient
-        fields = ["pk", "restaurant", "name", "price_by_kg"]
+        fields = [
+            "pk",
+            "restaurant",
+            "name",
+            "unit",
+            "price_per_unit",
+            "has_extra",
+            "extra_price",
+            "extra_quantity",
+        ]
         read_only_fields = ["pk", "restaurant"]
+
+    def validate(self, attrs):
+        # Partial updates: fall back on the stored values for omitted fields.
+        def value(field):
+            return attrs.get(field, getattr(self.instance, field, None))
+
+        if not value("has_extra"):
+            return {**attrs, **{field: None for field in self.EXTRA_FIELDS}}
+
+        missing = [field for field in self.EXTRA_FIELDS if value(field) is None]
+        if missing:
+            raise serializers.ValidationError(
+                {field: "Required when has_extra is true." for field in missing}
+            )
+        return attrs
 
 
 class OrderRecipeSerializer(serializers.ModelSerializer):

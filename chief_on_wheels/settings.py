@@ -148,6 +148,8 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Amounts are DecimalField in DB but JSON numbers for the TS client.
+    "COERCE_DECIMAL_TO_STRING": False,
 }
 
 SIMPLE_JWT = {

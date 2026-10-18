@@ -26,7 +26,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    list_display = ["name", "price_by_kg"]
+    list_display = ["name", "unit", "price_per_unit"]
 
 
 @admin.register(RecipeIngredient)

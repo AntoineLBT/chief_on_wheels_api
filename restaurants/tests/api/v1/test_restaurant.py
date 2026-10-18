@@ -1,7 +1,10 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from restaurants.tests.fixtures import RestaurantFixture
+from restaurants.constants import OrderIngredientActionType
+from restaurants.models import Ingredient, OrderIngredient, OrderRecipe
+from restaurants.tests.fixtures import (OrderFixture, RecipeIngredientFixture,
+                                        RestaurantFixture)
 
 
 class TestRestaurantList(TestCase, RestaurantFixture):
@@ -59,7 +62,7 @@ class TestRestaurantCreate(TestCase, RestaurantFixture):
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
         assert response.status_code == 201
-        assert response.json()["vat_rate"] == "0.00"
+        assert response.json()["vat_rate"] == 0
 
 
 class TestRestaurantUpdate(TestCase, RestaurantFixture):
@@ -105,7 +108,7 @@ class TestRestaurantUpdate(TestCase, RestaurantFixture):
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
         assert response.status_code == 200
-        assert response.json()["vat_rate"] == "10.00"
+        assert response.json()["vat_rate"] == 10
 
     def test_restaurant_update__vat_rate_out_of_bounds(self):
         user = self.any_user()
@@ -122,7 +125,7 @@ class TestRestaurantUpdate(TestCase, RestaurantFixture):
             assert "vat_rate" in response.json()
 
 
-class TestRestaurantDelete(TestCase, RestaurantFixture):
+class TestRestaurantDelete(TestCase, RecipeIngredientFixture, OrderFixture):
 
     client_class = APIClient
 
@@ -136,6 +139,28 @@ class TestRestaurantDelete(TestCase, RestaurantFixture):
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
         assert response.status_code == 204
+
+    def test_restaurant_delete__cascades_to_used_ingredients(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        recipe_ingredient = self.any_recipe_ingredient(self.any_recipe(restaurant))
+        order_recipe = OrderRecipe.objects.create(
+            order=self.any_order(restaurant), recipe=recipe_ingredient.recipe
+        )
+        OrderIngredient.objects.create(
+            order_recipe=order_recipe,
+            ingredient=recipe_ingredient.ingredient,
+            action_type=OrderIngredientActionType.REMOVE,
+        )
+        token = self.any_token(user)
+
+        response = self.client.delete(
+            f"/restaurants/{restaurant.pk}/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 204
+        assert not Ingredient.objects.exists()
 
     def test_restaurant_delete__only_own_restaurant(self):
         owner = self.any_user()

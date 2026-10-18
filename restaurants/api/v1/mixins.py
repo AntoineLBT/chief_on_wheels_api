@@ -21,6 +21,12 @@ class RestaurantOwnerPermissionMixin:
             raise NotFound("Restaurant not found")
         return restaurant
 
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # Resolve the restaurant before any validation, so that a foreign
+        # restaurant answers 404 whatever the payload.
+        self.restaurant
+
     def get_queryset(self):
         return super().get_queryset().filter(restaurant=self.restaurant)
 

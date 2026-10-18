@@ -100,6 +100,27 @@ class TestOrderCreate(TestCase, OrderFixture):
 
         assert response.status_code == 404
 
+    def test_order_create__foreign_shift_in_body(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        shift = self.any_shift(restaurant)
+        foreign_shift = self.any_shift(self.any_restaurant())
+        token = self.any_token(user)
+
+        data = {
+            "shift": foreign_shift.pk,
+            "customer_name": "Patrick",
+            "picking_time": timezone.now(),
+        }
+
+        response = self.client.post(
+            f"/restaurants/{restaurant.pk}/shifts/{shift.pk}/orders/",
+            data=data,
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 404
+
 
 class TestOrderUpdate(TestCase, OrderFixture):
 

@@ -6,7 +6,7 @@ from django.db import models
 
 from users.models import User
 
-from .constants import OrderIngredientActionType, OrderStatus
+from .constants import IngredientUnit, OrderIngredientActionType, OrderStatus
 
 
 class Restaurant(models.Model):
@@ -57,7 +57,26 @@ class Ingredient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    price_by_kg = models.FloatField()
+    unit = models.CharField(
+        choices=IngredientUnit.choices,
+        max_length=max(len(unit) for unit in IngredientUnit.values),
+    )
+    price_per_unit = models.DecimalField(
+        max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal("0"))]
+    )
+    has_extra = models.BooleanField(default=False)
+    # Charged to the customer on each ADD of this ingredient.
+    extra_price = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    # Portion used by an extra, in the base unit (g / ml / piece).
+    extra_quantity = models.PositiveIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1)]
+    )
 
     def __str__(self):
         return self.name
@@ -66,7 +85,8 @@ class Ingredient(models.Model):
 class RecipeIngredient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    # RESTRICT, not PROTECT: still deletable when its restaurant is deleted.
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.RESTRICT)
     quantity_in_g = models.IntegerField()
 
 
@@ -82,7 +102,7 @@ class OrderRecipe(models.Model):
 class OrderIngredient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     order_recipe = models.ForeignKey(OrderRecipe, on_delete=models.CASCADE)
-    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.RESTRICT)
     action_type = models.CharField(
         choices=OrderIngredientActionType,
         max_length=max(

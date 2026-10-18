@@ -1,7 +1,12 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from restaurants.tests.fixtures import IngredientFixture
+from restaurants.constants import OrderIngredientActionType
+from restaurants.models import OrderIngredient
+from restaurants.tests.fixtures import (IngredientFixture, OrderRecipeFixture,
+                                        RecipeIngredientFixture)
 
 
 class TestIngredientList(TestCase, IngredientFixture):
@@ -28,41 +33,122 @@ class TestIngredientList(TestCase, IngredientFixture):
         assert len(response.json()) == 1
         assert response.json()[0]["pk"] == str(ingredient.pk)
 
+    def test_ingredient_list__only_url_restaurant(self) -> None:
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
+        self.any_ingredient(with_restaurant=self.any_restaurant(user))
+        token = self.any_token(user)
+
+        response = self.client.get(
+            f"/restaurants/{restaurant.pk}/ingredients/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert [i["pk"] for i in response.json()] == [str(ingredient.pk)]
+
 
 class TestIngredientCreate(TestCase, IngredientFixture):
 
     client_class = APIClient
 
-    def test_ingredient_create(self):
-        user = self.any_user()
-        restaurant = self.any_restaurant(user)
-        token = self.any_token(user)
-
-        data = {"name": "sauce_tomate", "price_by_kg": 10, "restaurant": restaurant.pk}
-
-        response = self.client.post(
+    def post(self, restaurant, data, user=None):
+        token = self.any_token(user or restaurant.owner)
+        return self.client.post(
             f"/restaurants/{restaurant.pk}/ingredients/",
             data=data,
+            format="json",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
+    def test_ingredient_create(self):
+        restaurant = self.any_restaurant()
+
+        response = self.post(
+            restaurant,
+            {"name": "mozzarella", "unit": "KG", "price_per_unit": 12.5},
+        )
+
         assert response.status_code == 201
-        assert "name" in response.json()
+        assert response.json()["restaurant"] == str(restaurant.pk)
+        assert response.json()["unit"] == "KG"
+        assert response.json()["price_per_unit"] == 12.5
+
+    def test_ingredient_create__invalid_unit(self):
+        restaurant = self.any_restaurant()
+
+        response = self.post(
+            restaurant,
+            {"name": "mozzarella", "unit": "G", "price_per_unit": 12.5},
+        )
+
+        assert response.status_code == 400
+        assert "unit" in response.json()
+
+    def test_ingredient_create__with_extra(self):
+        restaurant = self.any_restaurant()
+
+        response = self.post(
+            restaurant,
+            {
+                "name": "mozzarella",
+                "unit": "KG",
+                "price_per_unit": 12.5,
+                "has_extra": True,
+                "extra_price": 1.5,
+                "extra_quantity": 40,
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["has_extra"] is True
+        assert response.json()["extra_price"] == 1.5
+        assert response.json()["extra_quantity"] == 40
+
+    def test_ingredient_create__extra_requires_price_and_quantity(self):
+        restaurant = self.any_restaurant()
+        base = {
+            "name": "mozzarella",
+            "unit": "KG",
+            "price_per_unit": 12.5,
+            "has_extra": True,
+        }
+
+        for missing, present in [
+            ("extra_price", {"extra_quantity": 40}),
+            ("extra_quantity", {"extra_price": 1.5}),
+        ]:
+            response = self.post(restaurant, {**base, **present})
+
+            assert response.status_code == 400, missing
+            assert list(response.json()) == [missing]
+
+    def test_ingredient_create__without_extra_clears_extra_values(self):
+        restaurant = self.any_restaurant()
+
+        response = self.post(
+            restaurant,
+            {
+                "name": "mozzarella",
+                "unit": "KG",
+                "price_per_unit": 12.5,
+                "has_extra": False,
+                "extra_price": 1.5,
+                "extra_quantity": 40,
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["extra_price"] is None
+        assert response.json()["extra_quantity"] is None
 
     def test_ingredient_create__owner_only(self):
-        owner = self.any_user()
-        owner.username = "Proprio"
-        owner.save()
-        restaurant = self.any_restaurant(owner)
+        restaurant = self.any_restaurant()
 
-        data = {"name": "sauce_tomate", "price_by_kg": 10, "restaurant": restaurant.pk}
-
-        user = self.any_user()
-        token = self.any_token(user)
-        response = self.client.post(
-            f"/restaurants/{restaurant.pk}/ingredients/",
-            data=data,
-            HTTP_AUTHORIZATION=f"Bearer {token}",
+        response = self.post(
+            restaurant,
+            {"name": "mozzarella", "unit": "KG", "price_per_unit": 12.5},
+            user=self.any_user(),
         )
 
         assert response.status_code == 404
@@ -72,70 +158,129 @@ class TestIngredientUpdate(TestCase, IngredientFixture):
 
     client_class = APIClient
 
-    def test_ingredient_update(self):
+    def test_ingredient_update__partial(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
         ingredient = self.any_ingredient(with_restaurant=restaurant)
         token = self.any_token(user)
 
-        data = {"name": ingredient.name, "price_by_kg": 42, "restaurant": restaurant.pk}
-
         response = self.client.patch(
             f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
-            data=data,
+            data={"name": "basilic"},
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 200
-        assert response.json()["price_by_kg"] == 42
+        assert response.json()["name"] == "basilic"
 
-    def test_ingredient_update__owner_only(self):
-        owner = self.any_user()
-        owner.username = "Proprio"
-        owner.save()
-        restaurant = self.any_restaurant(owner)
-        ingredient = self.any_ingredient(with_restaurant=restaurant)
-
-        data = {"name": ingredient.name, "price_by_kg": 42, "restaurant": restaurant.pk}
-
+    def test_ingredient_update__disabling_extra_clears_extra_values(self):
         user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
+        ingredient.has_extra = True
+        ingredient.extra_price = Decimal("1.50")
+        ingredient.extra_quantity = 40
+        ingredient.save()
         token = self.any_token(user)
+
         response = self.client.patch(
             f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
-            data=data,
+            data={"has_extra": False},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["extra_price"] is None
+        assert response.json()["extra_quantity"] is None
+
+    def test_ingredient_update__enabling_extra_requires_price_and_quantity(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
+        token = self.any_token(user)
+
+        response = self.client.patch(
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
+            data={"has_extra": True, "extra_price": 1.5},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 400
+        assert list(response.json()) == ["extra_quantity"]
+
+    def test_ingredient_update__owner_only(self):
+        restaurant = self.any_restaurant()
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
+        token = self.any_token(self.any_user())
+
+        response = self.client.patch(
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
+            data={"name": "basilic"},
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 404
 
 
-class TestDeleteingredient(TestCase, IngredientFixture):
+class TestIngredientDelete(
+    TestCase, RecipeIngredientFixture, OrderRecipeFixture, IngredientFixture
+):
 
     client_class = APIClient
 
-    def test_shift_delete(self):
+    def delete(self, ingredient):
+        restaurant = ingredient.restaurant
+        token = self.any_token(restaurant.owner)
+        return self.client.delete(
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+    def test_ingredient_delete__used_in_recipes(self):
+        ingredient = self.any_ingredient()
+        for _ in range(2):
+            self.any_recipe_ingredient(
+                self.any_recipe(ingredient.restaurant), ingredient
+            )
+
+        response = self.delete(ingredient)
+
+        assert response.status_code == 409
+        assert response.json()["recipe_count"] == 2
+
+    def test_ingredient_delete__used_in_an_order_only(self):
+        ingredient = self.any_ingredient()
+        OrderIngredient.objects.create(
+            order_recipe=self.any_order_recipe(),
+            ingredient=ingredient,
+            action_type=OrderIngredientActionType.ADD,
+        )
+
+        response = self.delete(ingredient)
+
+        assert response.status_code == 409
+        assert response.json()["recipe_count"] == 0
+
+    def test_ingredient_delete(self):
         user = self.any_user()
         restaurant = self.any_restaurant(user)
-        shift = self.any_ingredient(with_restaurant=restaurant)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
         token = self.any_token(user)
 
         response = self.client.delete(
-            f"/restaurants/{restaurant.pk}/ingredients/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
         assert response.status_code == 204
 
-    def test_shift_delete__owner_only(self):
-        owner = self.any_user()
-        restaurant = self.any_restaurant(owner)
-        shift = self.any_ingredient(with_restaurant=restaurant)
-
-        user = self.any_user()
-        token = self.any_token(user)
+    def test_ingredient_delete__owner_only(self):
+        restaurant = self.any_restaurant()
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
+        token = self.any_token(self.any_user())
 
         response = self.client.delete(
-            f"/restaurants/{restaurant.pk}/ingredients/{shift.pk}/",
+            f"/restaurants/{restaurant.pk}/ingredients/{ingredient.pk}/",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
