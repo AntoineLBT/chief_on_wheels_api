@@ -77,13 +77,16 @@ class IngredientViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
         try:
             ingredient.delete()
         except RestrictedError:
-            recipe_count = (
-                ingredient.recipeingredient_set.values("recipe").distinct().count()
+            recipes = (
+                Recipe.objects.filter(recipeingredient__ingredient=ingredient)
+                .distinct()
+                .order_by("name")
+                .values("pk", "name")
             )
             return Response(
                 {
                     "detail": "Ingredient used in recipes or orders.",
-                    "recipe_count": recipe_count,
+                    "recipes": list(recipes),
                 },
                 status=status.HTTP_409_CONFLICT,
             )

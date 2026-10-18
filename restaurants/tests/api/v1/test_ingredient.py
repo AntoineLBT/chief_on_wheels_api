@@ -238,15 +238,21 @@ class TestIngredientDelete(
 
     def test_ingredient_delete__used_in_recipes(self):
         ingredient = self.any_ingredient()
-        for _ in range(2):
-            self.any_recipe_ingredient(
-                self.any_recipe(ingredient.restaurant), ingredient
-            )
+        recipes = []
+        for name in ["regina", "calzone"]:
+            recipe = self.any_recipe(ingredient.restaurant)
+            recipe.name = name
+            recipe.save()
+            self.any_recipe_ingredient(recipe, ingredient)
+            recipes.append(recipe)
 
         response = self.delete(ingredient)
 
         assert response.status_code == 409
-        assert response.json()["recipe_count"] == 2
+        assert response.json()["recipes"] == [
+            {"pk": str(recipes[1].pk), "name": "calzone"},
+            {"pk": str(recipes[0].pk), "name": "regina"},
+        ]
 
     def test_ingredient_delete__used_in_an_order_only(self):
         ingredient = self.any_ingredient()
@@ -259,7 +265,7 @@ class TestIngredientDelete(
         response = self.delete(ingredient)
 
         assert response.status_code == 409
-        assert response.json()["recipe_count"] == 0
+        assert response.json()["recipes"] == []
 
     def test_ingredient_delete(self):
         user = self.any_user()
