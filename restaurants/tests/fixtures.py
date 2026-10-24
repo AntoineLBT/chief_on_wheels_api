@@ -48,7 +48,9 @@ class RecipeFixture(RestaurantFixture):
 
         restaurant = with_restaurant or self.any_restaurant()
 
-        return Recipe.objects.create(name="calzone", price=12.5, restaurant=restaurant)
+        return Recipe.objects.create(
+            name="calzone", price=Decimal("12.50"), restaurant=restaurant
+        )
 
 
 class IngredientFixture(RestaurantFixture):
@@ -71,13 +73,14 @@ class RecipeIngredientFixture(RecipeFixture, IngredientFixture):
         self,
         with_recipe: Recipe | None = None,
         with_ingredient: Ingredient | None = None,
+        quantity: int = 100,
     ) -> RecipeIngredient:
 
         recipe = with_recipe or self.any_recipe()
         ingredient = with_ingredient or self.any_ingredient("patate", recipe.restaurant)
 
         return RecipeIngredient.objects.create(
-            recipe=recipe, ingredient=ingredient, quantity_in_g=100
+            recipe=recipe, ingredient=ingredient, quantity=quantity
         )
 
 

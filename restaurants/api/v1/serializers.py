@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from restaurants.models import (Ingredient, Order, OrderIngredient,
@@ -126,20 +127,64 @@ class OrderSerializer(serializers.ModelSerializer):
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredient
-        fields = ["pk", "recipe", "ingredient", "quantity_in_g"]
+        fields = ["pk", "ingredient", "quantity"]
         read_only_fields = ["pk"]
+
+    def validate_ingredient(self, ingredient):
+        # Answer like an unknown pk: other catalogues stay invisible.
+        if ingredient.restaurant != self.context["view"].restaurant:
+            raise serializers.ValidationError("Ingredient not found.")
+        return ingredient
 
 
 class RecipeSerializer(serializers.ModelSerializer):
 
     recipe_ingredients = RecipeIngredientSerializer(
-        many=True, read_only=True, source="recipeingredient_set"
+        many=True, required=False, source="recipeingredient_set"
     )
+    cost = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Recipe
-        fields = ["pk", "restaurant", "name", "price", "recipe_ingredients"]
+        fields = [
+            "pk",
+            "restaurant",
+            "name",
+            "price",
+            "is_active",
+            "recipe_ingredients",
+            "cost",
+        ]
         read_only_fields = ["pk", "restaurant"]
+
+    def validate_recipe_ingredients(self, lines):
+        ingredients = [line["ingredient"] for line in lines]
+        if len(set(ingredients)) != len(ingredients):
+            raise serializers.ValidationError("Each ingredient may appear only once.")
+        return lines
+
+    @transaction.atomic
+    def create(self, validated_data):
+        lines = validated_data.pop("recipeingredient_set", [])
+        recipe = super().create(validated_data)
+        self.set_lines(recipe, lines)
+        return recipe
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        lines = validated_data.pop("recipeingredient_set", None)
+        recipe = super().update(instance, validated_data)
+        # Sent lines replace the whole set; omitted lines leave it untouched.
+        if lines is not None:
+            recipe.recipeingredient_set.all().delete()
+            self.set_lines(recipe, lines)
+        return recipe
+
+    @staticmethod
+    def set_lines(recipe, lines):
+        RecipeIngredient.objects.bulk_create(
+            RecipeIngredient(recipe=recipe, **line) for line in lines
+        )
 
 
 class IngredientSerializer(serializers.ModelSerializer):

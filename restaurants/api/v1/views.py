@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import cast
 
 from django.db import transaction
@@ -57,14 +58,16 @@ class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
                 shift__pk=shift_pk, shift__restaurant__owner=self.request.user
             )
             .select_related("shift", "shift__restaurant")
-            .annotate(amount=Coalesce(Sum("orderrecipe__recipe__price"), 0.0))
+            .annotate(amount=Coalesce(Sum("orderrecipe__recipe__price"), Decimal("0")))
         )
 
 
 class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
+    # Recipes are deactivated, never deleted.
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
     queryset = Recipe.objects.select_related("restaurant").prefetch_related(
-        "recipeingredient_set"
+        "recipeingredient_set__ingredient"
     )
 
 

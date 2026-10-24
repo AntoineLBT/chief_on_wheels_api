@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import uuid4
 
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -47,10 +47,25 @@ class Recipe(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    price = models.FloatField()
+    price = models.DecimalField(
+        max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal("0"))]
+    )
+    # Recipes are never deleted: an inactive one is hidden from order creation.
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
+
+    @property
+    def cost(self) -> Decimal:
+        total = sum(
+            (
+                line.ingredient.cost_of(line.quantity)
+                for line in self.recipeingredient_set.all()
+            ),
+            Decimal("0"),
+        )
+        return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class Ingredient(models.Model):
@@ -81,13 +96,27 @@ class Ingredient(models.Model):
     def __str__(self):
         return self.name
 
+    def cost_of(self, quantity: int) -> Decimal:
+        """Cost of a quantity in the base unit (g / ml / piece), unrounded."""
+        if self.unit == IngredientUnit.UNIT:
+            return quantity * self.price_per_unit
+        return quantity * self.price_per_unit / 1000
+
 
 class RecipeIngredient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     # RESTRICT, not PROTECT: still deletable when its restaurant is deleted.
     ingredient = models.ForeignKey(Ingredient, on_delete=models.RESTRICT)
-    quantity_in_g = models.IntegerField()
+    # In the ingredient's base unit (g / ml / piece).
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipe", "ingredient"], name="unique_recipe_ingredient"
+            )
+        ]
 
 
 class OrderRecipe(models.Model):

@@ -31,7 +31,7 @@ class IngredientAdmin(admin.ModelAdmin):
 
 @admin.register(RecipeIngredient)
 class RecipeIngredientAdmin(admin.ModelAdmin):
-    list_display = ["recipe__name", "ingredient__name", "quantity_in_g"]
+    list_display = ["recipe__name", "ingredient__name", "quantity"]
 
 
 @admin.register(OrderRecipe)
