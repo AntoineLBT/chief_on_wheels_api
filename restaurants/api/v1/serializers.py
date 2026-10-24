@@ -282,3 +282,16 @@ class FixedChargeCloseSerializer(serializers.Serializer):
                 f"({start_date.isoformat()})."
             )
         return effective_date
+
+
+class AccountingQuerySerializer(serializers.Serializer):
+    period = serializers.ChoiceField(choices=["year", "month", "week", "shift"])
+    # Any day of the period; the shift itself for period=shift.
+    date = serializers.DateField(required=False)
+    shift = serializers.UUIDField(required=False)
+
+    def validate(self, attrs):
+        field = "shift" if attrs["period"] == "shift" else "date"
+        if field not in attrs:
+            raise serializers.ValidationError({field: "This field is required."})
+        return attrs

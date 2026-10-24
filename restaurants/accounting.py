@@ -106,3 +106,87 @@ def shift_fixed_charges(
         (daily_charges(charges, day) for day in days(start, end)), Fraction(0)
     )
     return per_shift_charges(charges, shift_day) + monthly / shifts_in_month
+
+
+@dataclass(frozen=True)
+class ShiftSales:
+    """What a synced shift sold, from the snapshots of its orders."""
+
+    pk: str
+    day: date
+    vat_rate: Decimal
+    revenue_incl_vat: Decimal
+    material_cost: Decimal
+    order_count: int
+
+
+def figures(shifts: list[ShiftSales], fixed_charges: Fraction) -> dict:
+    revenue = sum((Fraction(s.revenue_incl_vat) for s in shifts), Fraction(0))
+    # Each shift at the rate it started with.
+    revenue_excl_vat = sum(
+        (
+            Fraction(s.revenue_incl_vat) / (1 + Fraction(s.vat_rate) / 100)
+            for s in shifts
+        ),
+        Fraction(0),
+    )
+    material_cost = sum((Fraction(s.material_cost) for s in shifts), Fraction(0))
+    return {
+        "revenue_incl_vat": cents(revenue),
+        "revenue_excl_vat": cents(revenue_excl_vat),
+        "material_cost": cents(material_cost),
+        "fixed_charges": cents(fixed_charges),
+        "profit": cents(revenue_excl_vat - material_cost - fixed_charges),
+        "shift_count": len(shifts),
+        "order_count": sum(s.order_count for s in shifts),
+    }
+
+
+def period_figures(
+    charges: list[Charge], shifts: list[ShiftSales], start: date, end: date
+) -> dict:
+    """Figures of the days from start to end, both included. `shifts` holds
+    every shift of the restaurant."""
+    in_period = [s for s in shifts if start <= s.day <= end]
+    fixed = period_fixed_charges(charges, [s.day for s in shifts], start, end)
+    return figures(in_period, fixed)
+
+
+def shift_figures(
+    charges: list[Charge], shifts: list[ShiftSales], shift: ShiftSales
+) -> dict:
+    fixed = shift_fixed_charges(charges, [s.day for s in shifts], shift.day)
+    return figures([shift], fixed)
+
+
+def period_bounds(period: str, day: date) -> tuple[date, date]:
+    """First and last day of the year, month or ISO week holding day."""
+    if period == "year":
+        return date(day.year, 1, 1), date(day.year, 12, 31)
+    if period == "month":
+        return month_bounds(day)
+    monday = day - timedelta(days=day.weekday())
+    return monday, monday + timedelta(days=6)
+
+
+def months_of(year: int) -> list[tuple[date, date]]:
+    return [month_bounds(date(year, month, 1)) for month in range(1, 13)]
+
+
+def period_status(start: date, end: date, today: date) -> str:
+    if end < today:
+        return "past"
+    if start <= today:
+        return "current"
+    return "future"
+
+
+def shift_rows(
+    charges: list[Charge], shifts: list[ShiftSales], start: date, end: date
+) -> list[dict]:
+    """One row per shift from start to end, in chronological order."""
+    return [
+        {"shift": s.pk, "date": s.day, **shift_figures(charges, shifts, s)}
+        for s in sorted(shifts, key=lambda s: s.day)
+        if start <= s.day <= end
+    ]

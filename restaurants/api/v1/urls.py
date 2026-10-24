@@ -2,10 +2,10 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested.routers import NestedDefaultRouter
 
-from restaurants.api.v1.views import (FixedChargeViewSet, IngredientViewSet,
-                                      OrderViewSet, RecipeViewSet,
-                                      RestaurantViewSet, ShiftViewSet,
-                                      SyncView)
+from restaurants.api.v1.views import (AccountingView, FixedChargeViewSet,
+                                      IngredientViewSet, OrderViewSet,
+                                      RecipeViewSet, RestaurantViewSet,
+                                      ShiftViewSet, SyncView)
 
 router = DefaultRouter()
 router.register(r"restaurants", RestaurantViewSet, basename="restaurant")
@@ -29,5 +29,10 @@ urlpatterns = (
     + shifts_router.urls
     + [
         path("sync/", SyncView.as_view(), name="sync"),
+        path(
+            "restaurants/<uuid:restaurant_pk>/accounting/",
+            AccountingView.as_view(),
+            name="restaurant-accounting",
+        ),
     ]
 )

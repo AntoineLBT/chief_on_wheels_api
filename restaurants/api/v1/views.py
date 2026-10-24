@@ -3,17 +3,22 @@ from decimal import Decimal
 from typing import cast
 
 from django.db import transaction
-from django.db.models import (DecimalField, ExpressionWrapper, OuterRef,
+from django.db.models import (Count, DecimalField, ExpressionWrapper, OuterRef,
                               RestrictedError, Subquery, Sum)
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from restaurants.accounting import (Charge, ShiftSales, months_of,
+                                    period_bounds, period_figures,
+                                    period_status, shift_figures, shift_rows)
 from restaurants.api.v1.mixins import RestaurantOwnerPermissionMixin
-from restaurants.api.v1.serializers import (FixedChargeCloseSerializer,
+from restaurants.api.v1.serializers import (AccountingQuerySerializer,
+                                            FixedChargeCloseSerializer,
                                             FixedChargeReviseSerializer,
                                             FixedChargeSerializer,
                                             IngredientSerializer,
@@ -26,22 +31,24 @@ from restaurants.models import (FixedCharge, Ingredient, Order,
                                 Restaurant, Shift)
 
 
-def order_amount():
-    """Σ unit_price + Σ extra_price, from the snapshots taken at order creation.
+def snapshot_total(order_path: str, recipe_field: str, extra_field: str):
+    """Σ recipe_field of the order recipes + Σ extra_field of their ingredient
+    modifications, for the orders reached through order_path from OuterRef.
 
     One subquery per table: a single query joining both would count each
-    recipe price once per ingredient modification.
+    recipe line once per ingredient modification.
     """
     recipes_total = (
-        OrderRecipe.objects.filter(order=OuterRef("pk"))
-        .values("order")  # GROUP BY order
-        .annotate(total=Sum("unit_price"))
+        OrderRecipe.objects.filter(**{order_path: OuterRef("pk")})
+        .values(order_path)  # GROUP BY
+        .annotate(total=Sum(recipe_field))
         .values("total")
     )
+    extras_path = f"order_recipe__{order_path}"
     extras_total = (
-        OrderIngredient.objects.filter(order_recipe__order=OuterRef("pk"))
-        .values("order_recipe__order")  # GROUP BY order
-        .annotate(total=Sum("extra_price"))
+        OrderIngredient.objects.filter(**{extras_path: OuterRef("pk")})
+        .values(extras_path)  # GROUP BY
+        .annotate(total=Sum(extra_field))
         .values("total")
     )
     # Coalesce: an order without lines or modifications sums to NULL.
@@ -50,6 +57,11 @@ def order_amount():
         + Coalesce(Subquery(extras_total), Decimal("0")),
         output_field=DecimalField(max_digits=10, decimal_places=2),
     )
+
+
+def order_amount():
+    """Σ unit_price + Σ extra_price, from the snapshots taken at order creation."""
+    return snapshot_total("order", "unit_price", "extra_price")
 
 
 class RestaurantViewSet(viewsets.ModelViewSet):
@@ -207,3 +219,106 @@ class SyncView(APIView):
         sync_shift_serializer.save()
 
         return Response(status=status.HTTP_201_CREATED)
+
+
+class AccountingView(RestaurantOwnerPermissionMixin, APIView):
+    """Accounting of the synced shifts of a restaurant, over a period."""
+
+    def get(self, request, *args, **kwargs):
+        query = AccountingQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        params = query.validated_data
+        charges = self.charges()
+        shifts = self.shifts()
+
+        period = params["period"]
+        if period == "shift":
+            return Response(self.shift_report(charges, shifts, params["shift"]))
+        start, end = period_bounds(period, params["date"])
+        report = {
+            "period": period,
+            "start": start,
+            "end": end,
+            "totals": period_figures(charges, shifts, start, end),
+        }
+        if period == "year":
+            today = timezone.localdate()
+            report["to_date"] = period_figures(charges, shifts, start, min(end, today))
+            report["breakdown"] = [
+                {
+                    "start": month_start,
+                    "end": month_end,
+                    "status": period_status(month_start, month_end, today),
+                    **period_figures(charges, shifts, month_start, month_end),
+                }
+                for month_start, month_end in months_of(start.year)
+            ]
+        else:
+            report["breakdown"] = shift_rows(charges, shifts, start, end)
+            # A month bears its charges even without a shift to carry them.
+            if period == "month" and not report["breakdown"]:
+                report["breakdown"] = [
+                    {"shift": None, "date": None, **report["totals"]}
+                ]
+        return Response(report)
+
+    def shift_report(self, charges, shifts, shift_pk) -> dict:
+        shift = next((s for s in shifts if s.pk == str(shift_pk)), None)
+        if shift is None:
+            raise NotFound("Shift not found")
+        orders = (
+            Order.objects.filter(shift_id=shift_pk)
+            .annotate(
+                amount=order_amount(),
+                cost=snapshot_total("order", "unit_cost", "extra_cost"),
+            )
+            .order_by("picking_time", "pk")
+        )
+        return {
+            "period": "shift",
+            "shift": shift.pk,
+            "start": shift.day,
+            "end": shift.day,
+            "totals": shift_figures(charges, shifts, shift),
+            "breakdown": [
+                {
+                    "order": str(order.pk),
+                    "customer_name": order.customer_name,
+                    "picking_time": timezone.localtime(order.picking_time),
+                    "amount": order.amount,
+                    "cost": order.cost,
+                }
+                for order in orders
+            ],
+        }
+
+    def charges(self) -> list[Charge]:
+        return [
+            Charge(c.amount, c.frequency, c.start_date, c.end_date)
+            for c in FixedCharge.objects.filter(restaurant=self.restaurant)
+        ]
+
+    def shifts(self) -> list[ShiftSales]:
+        """Every shift of the restaurant: the fixed charges of a shift depend
+        on the number of shifts in its month."""
+        shifts = (
+            Shift.objects.filter(restaurant=self.restaurant)
+            .annotate(
+                revenue=snapshot_total("order__shift", "unit_price", "extra_price"),
+                material_cost=snapshot_total("order__shift", "unit_cost", "extra_cost"),
+                order_count=Count("order"),
+            )
+            .order_by("date")
+        )
+        return [
+            ShiftSales(
+                pk=str(shift.pk),
+                # The local day: a shift at 00:30 in Paris belongs to that day.
+                day=timezone.localtime(shift.date).date(),
+                vat_rate=shift.vat_rate,
+                revenue_incl_vat=shift.revenue,
+                material_cost=shift.material_cost,
+                order_count=shift.order_count,
+            )
+            for shift in shifts
+        ]
