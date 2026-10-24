@@ -1,13 +1,14 @@
+from datetime import date
 from decimal import Decimal
 
 from django.utils import timezone
 
-from restaurants.constants import IngredientUnit
+from restaurants.constants import FixedChargeFrequency, IngredientUnit
 from users.models import User
 from users.tests.fixtures import UserFixture
 
-from ..models import (Ingredient, Order, OrderRecipe, Recipe, RecipeIngredient,
-                      Restaurant, Shift)
+from ..models import (FixedCharge, Ingredient, Order, OrderRecipe, Recipe,
+                      RecipeIngredient, Restaurant, Shift)
 
 
 class RestaurantFixture(UserFixture):
@@ -93,4 +94,22 @@ class OrderRecipeFixture(OrderFixture, RecipeFixture):
             recipe=recipe,
             unit_price=recipe.price,
             unit_cost=Decimal("3.00"),
+        )
+
+
+class FixedChargeFixture(RestaurantFixture):
+
+    def any_fixed_charge(
+        self,
+        with_restaurant: Restaurant | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> FixedCharge:
+        return FixedCharge.objects.create(
+            restaurant=with_restaurant or self.any_restaurant(),
+            name="Loyer",
+            amount=Decimal("300.00"),
+            frequency=FixedChargeFrequency.MONTHLY,
+            start_date=start_date or date(2026, 1, 1),
+            end_date=end_date,
         )

@@ -1,12 +1,15 @@
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import uuid4
 
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
+from django.utils import timezone
 
 from users.models import User
 
-from .constants import IngredientUnit, OrderIngredientActionType, OrderStatus
+from .constants import (FixedChargeFrequency, IngredientUnit,
+                        OrderIngredientActionType, OrderStatus)
 
 
 class Restaurant(models.Model):
@@ -150,3 +153,36 @@ class OrderIngredient(models.Model):
     # Zero unless an ADD of an ingredient with has_extra.
     extra_price = snapshot_field()
     extra_cost = snapshot_field()
+
+
+class FixedCharge(models.Model):
+    """One period of a charge: changing the amount or the frequency closes it
+    and opens a new one, so past accounting never changes."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    amount = models.DecimalField(
+        max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    frequency = models.CharField(
+        choices=FixedChargeFrequency.choices,
+        max_length=max(len(frequency) for frequency in FixedChargeFrequency.values),
+    )
+    start_date = models.DateField(default=timezone.localdate)
+    # Inclusive: the charge still applies on this day. Null while active.
+    end_date = models.DateField(null=True, blank=True)
+
+    @transaction.atomic
+    def revise(self, effective_date: date, **changes) -> "FixedCharge":
+        """Close this charge the day before effective_date and open its
+        successor, with the given changes, on effective_date."""
+        self.end_date = effective_date - timedelta(days=1)
+        self.save(update_fields=["end_date"])
+        return FixedCharge.objects.create(
+            restaurant=self.restaurant,
+            name=self.name,
+            amount=changes.get("amount", self.amount),
+            frequency=changes.get("frequency", self.frequency),
+            start_date=effective_date,
+        )

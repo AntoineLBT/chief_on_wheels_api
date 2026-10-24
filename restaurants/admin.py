@@ -1,7 +1,7 @@
 from django.contrib import admin
 
-from .models import (Ingredient, Order, OrderIngredient, OrderRecipe, Recipe,
-                     RecipeIngredient, Restaurant, Shift)
+from .models import (FixedCharge, Ingredient, Order, OrderIngredient,
+                     OrderRecipe, Recipe, RecipeIngredient, Restaurant, Shift)
 
 
 @admin.register(Restaurant)
@@ -42,3 +42,8 @@ class OrderRecipeAdmin(admin.ModelAdmin):
 @admin.register(OrderIngredient)
 class OrderIngredientAdmin(admin.ModelAdmin):
     list_display = ["order_recipe", "ingredient", "action_type"]
+
+
+@admin.register(FixedCharge)
+class FixedChargeAdmin(admin.ModelAdmin):
+    list_display = ["name", "amount", "frequency", "start_date", "end_date"]

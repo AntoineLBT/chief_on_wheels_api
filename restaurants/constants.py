@@ -16,3 +16,9 @@ class IngredientUnit(models.TextChoices):
     KG = "KG", "kg"
     L = "L", "l"
     UNIT = "UNIT", "unit"
+
+
+class FixedChargeFrequency(models.TextChoices):
+    PER_SHIFT = "PER_SHIFT", "per_shift"
+    MONTHLY = "MONTHLY", "monthly"
+    YEARLY = "YEARLY", "yearly"

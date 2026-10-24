@@ -1,9 +1,10 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
-from restaurants.models import (Ingredient, Order, OrderIngredient,
-                                OrderRecipe, Recipe, RecipeIngredient,
-                                Restaurant, Shift)
+from restaurants.models import (FixedCharge, Ingredient, Order,
+                                OrderIngredient, OrderRecipe, Recipe,
+                                RecipeIngredient, Restaurant, Shift)
 
 
 class SyncOrderIngredientSerializer(serializers.ModelSerializer):
@@ -233,3 +234,51 @@ class OrderIngredientSerializer(serializers.ModelSerializer):
         model = OrderIngredient
         fields = ["pk", "order_recipe", "ingredient", "action_type"]
         read_only_fields = ["pk"]
+
+
+class FixedChargeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FixedCharge
+        fields = [
+            "pk",
+            "restaurant",
+            "name",
+            "amount",
+            "frequency",
+            "start_date",
+            "end_date",
+        ]
+        read_only_fields = ["pk", "restaurant", "end_date"]
+
+
+class FixedChargeReviseSerializer(serializers.ModelSerializer):
+    effective_date = serializers.DateField(default=timezone.localdate)
+
+    class Meta:
+        model = FixedCharge
+        fields = ["amount", "frequency", "effective_date"]
+        extra_kwargs = {"amount": {"required": False}, "frequency": {"required": False}}
+
+    def validate_effective_date(self, effective_date):
+        # The current charge must keep at least its first day.
+        start_date = self.context["charge"].start_date
+        if effective_date <= start_date:
+            raise serializers.ValidationError(
+                "The effective date must be after the start of the charge "
+                f"({start_date.isoformat()})."
+            )
+        return effective_date
+
+
+class FixedChargeCloseSerializer(serializers.Serializer):
+    effective_date = serializers.DateField(default=timezone.localdate)
+
+    def validate_effective_date(self, effective_date):
+        # end_date is inclusive: closing on the start date keeps one day.
+        start_date = self.context["charge"].start_date
+        if effective_date < start_date:
+            raise serializers.ValidationError(
+                "The effective date must not be before the start of the charge "
+                f"({start_date.isoformat()})."
+            )
+        return effective_date

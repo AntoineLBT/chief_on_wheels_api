@@ -1,11 +1,14 @@
+from datetime import date
 from decimal import Decimal
 
 from django.test import TestCase
 from rest_framework.test import APIClient
 
 from restaurants.constants import OrderIngredientActionType
-from restaurants.models import Ingredient, OrderIngredient, OrderRecipe
-from restaurants.tests.fixtures import (OrderFixture, RecipeIngredientFixture,
+from restaurants.models import (FixedCharge, Ingredient, OrderIngredient,
+                                OrderRecipe)
+from restaurants.tests.fixtures import (FixedChargeFixture, OrderFixture,
+                                        RecipeIngredientFixture,
                                         RestaurantFixture)
 
 
@@ -127,7 +130,9 @@ class TestRestaurantUpdate(TestCase, RestaurantFixture):
             assert "vat_rate" in response.json()
 
 
-class TestRestaurantDelete(TestCase, RecipeIngredientFixture, OrderFixture):
+class TestRestaurantDelete(
+    TestCase, RecipeIngredientFixture, OrderFixture, FixedChargeFixture
+):
 
     client_class = APIClient
 
@@ -168,6 +173,21 @@ class TestRestaurantDelete(TestCase, RecipeIngredientFixture, OrderFixture):
 
         assert response.status_code == 204
         assert not Ingredient.objects.exists()
+
+    def test_restaurant_delete__cascades_to_fixed_charges(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        self.any_fixed_charge(restaurant)
+        self.any_fixed_charge(restaurant, end_date=date(2026, 6, 30))
+        token = self.any_token(user)
+
+        response = self.client.delete(
+            f"/restaurants/{restaurant.pk}/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 204
+        assert not FixedCharge.objects.exists()
 
     def test_restaurant_delete__only_own_restaurant(self):
         owner = self.any_user()

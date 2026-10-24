@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from typing import cast
 
@@ -6,18 +7,23 @@ from django.db.models import (DecimalField, ExpressionWrapper, OuterRef,
                               RestrictedError, Subquery, Sum)
 from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
-from rest_framework.exceptions import NotFound
+from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from restaurants.api.v1.mixins import RestaurantOwnerPermissionMixin
-from restaurants.api.v1.serializers import (IngredientSerializer,
+from restaurants.api.v1.serializers import (FixedChargeCloseSerializer,
+                                            FixedChargeReviseSerializer,
+                                            FixedChargeSerializer,
+                                            IngredientSerializer,
                                             OrderSerializer, RecipeSerializer,
                                             RestaurantSerializer,
                                             ShiftSerializer,
                                             SyncShiftSerializer)
-from restaurants.models import (Ingredient, Order, OrderIngredient,
-                                OrderRecipe, Recipe, Restaurant, Shift)
+from restaurants.models import (FixedCharge, Ingredient, Order,
+                                OrderIngredient, OrderRecipe, Recipe,
+                                Restaurant, Shift)
 
 
 def order_amount():
@@ -122,6 +128,61 @@ class IngredientViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FixedChargeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
+    serializer_class = FixedChargeSerializer
+    queryset = FixedCharge.objects.select_related("restaurant")
+    # Charges are revised or closed, never overwritten nor deleted.
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def partial_update(self, request, *args, **kwargs):
+        # A rename has no accounting effect: the only in-place change.
+        if set(request.data) - {"name"}:
+            raise ValidationError(
+                {
+                    "detail": "Only the name can be changed in place: "
+                    "revise the charge instead."
+                }
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Closed charges only matter to the accounting. They stay reachable by
+        # pk so that acting on one answers 400 rather than 404.
+        if self.action == "list":
+            return queryset.filter(end_date__isnull=True)
+        return queryset
+
+    def validate_action(self, request) -> tuple[FixedCharge, date, dict]:
+        """Validate a revise or close on an active charge, returning the
+        charge, the effective date and the other validated fields."""
+        charge = self.get_object()
+        if charge.end_date is not None:
+            raise ValidationError({"detail": "This charge is already closed."})
+        serializer = self.get_serializer(
+            data=request.data,
+            context={**self.get_serializer_context(), "charge": charge},
+        )
+        serializer.is_valid(raise_exception=True)
+        changes = dict(serializer.validated_data)
+        return charge, changes.pop("effective_date"), changes
+
+    @action(detail=True, methods=["post"], serializer_class=FixedChargeReviseSerializer)
+    def revise(self, request, *args, **kwargs):
+        charge, effective_date, changes = self.validate_action(request)
+        successor = charge.revise(effective_date, **changes)
+        return Response(
+            FixedChargeSerializer(successor).data, status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=["post"], serializer_class=FixedChargeCloseSerializer)
+    def close(self, request, *args, **kwargs):
+        charge, effective_date, _ = self.validate_action(request)
+        charge.end_date = effective_date
+        charge.save(update_fields=["end_date"])
+        return Response(FixedChargeSerializer(charge).data)
 
 
 class SyncView(APIView):
