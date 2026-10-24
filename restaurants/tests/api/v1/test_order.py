@@ -1,13 +1,17 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from restaurants.tests.fixtures import OrderFixture, RecipeFixture
+from restaurants.constants import OrderIngredientActionType
+from restaurants.tests.fixtures import (IngredientFixture, OrderFixture,
+                                        RecipeFixture)
 
-from ....models import OrderRecipe
+from ....models import OrderIngredient, OrderRecipe
 
 
-class TestOrderList(TestCase, OrderFixture, RecipeFixture):
+class TestOrderList(TestCase, OrderFixture, RecipeFixture, IngredientFixture):
 
     client_class = APIClient
 
@@ -42,7 +46,27 @@ class TestOrderList(TestCase, OrderFixture, RecipeFixture):
         order = self.any_order(restaurant)
         token = self.any_token(owner)
         recipe = self.any_recipe(restaurant)
-        OrderRecipe.objects.create(order=order, recipe=recipe)
+        ingredient = self.any_ingredient(with_restaurant=restaurant)
+        with_extra, plain = [
+            OrderRecipe.objects.create(
+                order=order,
+                recipe=recipe,
+                unit_price=Decimal(unit_price),
+                unit_cost=Decimal("3.00"),
+            )
+            for unit_price in ["11.00", "9.00"]
+        ]
+        for action_type, extra_price in [
+            (OrderIngredientActionType.ADD, "1.50"),
+            (OrderIngredientActionType.REMOVE, "0"),
+        ]:
+            OrderIngredient.objects.create(
+                order_recipe=with_extra,
+                ingredient=ingredient,
+                action_type=action_type,
+                extra_price=Decimal(extra_price),
+                extra_cost=Decimal("0"),
+            )
 
         response = self.client.get(
             f"/restaurants/{order.shift.restaurant.pk}/shifts/{order.shift.pk}/orders/",
@@ -50,7 +74,20 @@ class TestOrderList(TestCase, OrderFixture, RecipeFixture):
         )
 
         assert response.status_code == 200
-        assert response.json()[0]["amount"] == recipe.price
+        # Snapshots, not the current recipe price (12.50); each line counted once.
+        assert response.json()[0]["amount"] == 21.5
+
+    def test_order_list_amount__empty_order(self):
+        owner = self.any_user()
+        order = self.any_order(self.any_restaurant(owner))
+        token = self.any_token(owner)
+
+        response = self.client.get(
+            f"/restaurants/{order.shift.restaurant.pk}/shifts/{order.shift.pk}/orders/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.json()[0]["amount"] == 0
 
 
 class TestOrderCreate(TestCase, OrderFixture):

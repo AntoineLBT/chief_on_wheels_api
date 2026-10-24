@@ -119,10 +119,19 @@ class RecipeIngredient(models.Model):
         ]
 
 
+def snapshot_field():
+    """An amount frozen by the client at order creation, never recomputed."""
+    return models.DecimalField(
+        max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal("0"))]
+    )
+
+
 class OrderRecipe(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
+    unit_price = snapshot_field()
+    unit_cost = snapshot_field()
 
     def __str__(self):
         return f"{self.recipe}_{self.order}"
@@ -138,3 +147,6 @@ class OrderIngredient(models.Model):
             [len(restaurant[0]) for restaurant in OrderIngredientActionType.choices]
         ),
     )
+    # Zero unless an ADD of an ingredient with has_extra.
+    extra_price = snapshot_field()
+    extra_cost = snapshot_field()

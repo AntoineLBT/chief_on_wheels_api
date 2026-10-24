@@ -87,6 +87,10 @@ class RecipeIngredientFixture(RecipeFixture, IngredientFixture):
 class OrderRecipeFixture(OrderFixture, RecipeFixture):
 
     def any_order_recipe(self):
+        recipe = self.any_recipe()
         return OrderRecipe.objects.create(
-            order=self.any_order(), recipe=self.any_recipe()
+            order=self.any_order(),
+            recipe=recipe,
+            unit_price=recipe.price,
+            unit_cost=Decimal("3.00"),
         )

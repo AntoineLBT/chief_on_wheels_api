@@ -2,7 +2,8 @@ from decimal import Decimal
 from typing import cast
 
 from django.db import transaction
-from django.db.models import RestrictedError, Sum
+from django.db.models import (DecimalField, ExpressionWrapper, OuterRef,
+                              RestrictedError, Subquery, Sum)
 from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
 from rest_framework.exceptions import NotFound
@@ -15,7 +16,29 @@ from restaurants.api.v1.serializers import (IngredientSerializer,
                                             RestaurantSerializer,
                                             ShiftSerializer,
                                             SyncShiftSerializer)
-from restaurants.models import Ingredient, Order, Recipe, Restaurant, Shift
+from restaurants.models import (Ingredient, Order, OrderIngredient,
+                                OrderRecipe, Recipe, Restaurant, Shift)
+
+
+def snapshot_total(model, order_path, field):
+    # One subquery per table: joining both in a single Sum would count each
+    # recipe price once per ingredient modification.
+    total = (
+        model.objects.filter(**{order_path: OuterRef("pk")})
+        .values(order_path)
+        .annotate(total=Sum(field))
+        .values("total")
+    )
+    return Coalesce(Subquery(total), Decimal("0"))
+
+
+def order_amount():
+    """Σ unit_price + Σ extra_price, from the snapshots taken at order creation."""
+    return ExpressionWrapper(
+        snapshot_total(OrderRecipe, "order", "unit_price")
+        + snapshot_total(OrderIngredient, "order_recipe__order", "extra_price"),
+        output_field=DecimalField(max_digits=10, decimal_places=2),
+    )
 
 
 class RestaurantViewSet(viewsets.ModelViewSet):
@@ -58,7 +81,7 @@ class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
                 shift__pk=shift_pk, shift__restaurant__owner=self.request.user
             )
             .select_related("shift", "shift__restaurant")
-            .annotate(amount=Coalesce(Sum("orderrecipe__recipe__price"), Decimal("0")))
+            .annotate(amount=order_amount())
         )
 
 

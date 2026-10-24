@@ -12,7 +12,7 @@ class SyncOrderIngredientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderIngredient
-        fields = ["id", "ingredient", "action_type"]
+        fields = ["id", "ingredient", "action_type", "extra_price", "extra_cost"]
 
     def create(self, validated_data):
         instance_id = validated_data.pop("id")
@@ -28,7 +28,7 @@ class SyncOrderRecipeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderRecipe
-        fields = ["id", "recipe", "order_ingredients"]
+        fields = ["id", "recipe", "unit_price", "unit_cost", "order_ingredients"]
 
     def create(self, validated_data):
         instance_id = validated_data.pop("id")
@@ -116,7 +116,7 @@ class ShiftSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
 
-    amount = serializers.FloatField(read_only=True)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Order

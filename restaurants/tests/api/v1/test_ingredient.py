@@ -260,6 +260,8 @@ class TestIngredientDelete(
             order_recipe=self.any_order_recipe(),
             ingredient=ingredient,
             action_type=OrderIngredientActionType.ADD,
+            extra_price=Decimal("1.50"),
+            extra_cost=Decimal("0.40"),
         )
 
         response = self.delete(ingredient)

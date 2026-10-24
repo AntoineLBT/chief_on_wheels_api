@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -145,12 +147,17 @@ class TestRestaurantDelete(TestCase, RecipeIngredientFixture, OrderFixture):
         restaurant = self.any_restaurant(user)
         recipe_ingredient = self.any_recipe_ingredient(self.any_recipe(restaurant))
         order_recipe = OrderRecipe.objects.create(
-            order=self.any_order(restaurant), recipe=recipe_ingredient.recipe
+            order=self.any_order(restaurant),
+            recipe=recipe_ingredient.recipe,
+            unit_price=Decimal("12.50"),
+            unit_cost=Decimal("3.00"),
         )
         OrderIngredient.objects.create(
             order_recipe=order_recipe,
             ingredient=recipe_ingredient.ingredient,
             action_type=OrderIngredientActionType.REMOVE,
+            extra_price=Decimal("0"),
+            extra_cost=Decimal("0"),
         )
         token = self.any_token(user)
 
