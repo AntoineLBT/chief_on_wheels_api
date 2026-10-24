@@ -20,23 +20,28 @@ from restaurants.models import (Ingredient, Order, OrderIngredient,
                                 OrderRecipe, Recipe, Restaurant, Shift)
 
 
-def snapshot_total(model, order_path, field):
-    # One subquery per table: joining both in a single Sum would count each
-    # recipe price once per ingredient modification.
-    total = (
-        model.objects.filter(**{order_path: OuterRef("pk")})
-        .values(order_path)
-        .annotate(total=Sum(field))
+def order_amount():
+    """Σ unit_price + Σ extra_price, from the snapshots taken at order creation.
+
+    One subquery per table: a single query joining both would count each
+    recipe price once per ingredient modification.
+    """
+    recipes_total = (
+        OrderRecipe.objects.filter(order=OuterRef("pk"))
+        .values("order")  # GROUP BY order
+        .annotate(total=Sum("unit_price"))
         .values("total")
     )
-    return Coalesce(Subquery(total), Decimal("0"))
-
-
-def order_amount():
-    """Σ unit_price + Σ extra_price, from the snapshots taken at order creation."""
+    extras_total = (
+        OrderIngredient.objects.filter(order_recipe__order=OuterRef("pk"))
+        .values("order_recipe__order")  # GROUP BY order
+        .annotate(total=Sum("extra_price"))
+        .values("total")
+    )
+    # Coalesce: an order without lines or modifications sums to NULL.
     return ExpressionWrapper(
-        snapshot_total(OrderRecipe, "order", "unit_price")
-        + snapshot_total(OrderIngredient, "order_recipe__order", "extra_price"),
+        Coalesce(Subquery(recipes_total), Decimal("0"))
+        + Coalesce(Subquery(extras_total), Decimal("0")),
         output_field=DecimalField(max_digits=10, decimal_places=2),
     )
 
