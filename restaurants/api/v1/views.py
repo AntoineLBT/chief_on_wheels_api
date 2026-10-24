@@ -4,7 +4,7 @@ from typing import cast
 
 from django.db import transaction
 from django.db.models import (Count, DecimalField, ExpressionWrapper, OuterRef,
-                              RestrictedError, Subquery, Sum)
+                              Q, RestrictedError, Subquery, Sum)
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -26,27 +26,36 @@ from restaurants.api.v1.serializers import (AccountingQuerySerializer,
                                             RestaurantSerializer,
                                             ShiftSerializer,
                                             SyncShiftSerializer)
+from restaurants.constants import OrderStatus
 from restaurants.models import (FixedCharge, Ingredient, Order,
                                 OrderIngredient, OrderRecipe, Recipe,
                                 Restaurant, Shift)
 
 
-def snapshot_total(order_path: str, recipe_field: str, extra_field: str):
+def snapshot_total(
+    order_path: str, recipe_field: str, extra_field: str, **order_recipe_filters
+):
     """Σ recipe_field of the order recipes + Σ extra_field of their ingredient
     modifications, for the orders reached through order_path from OuterRef.
+    order_recipe_filters narrow the order recipes (and so their modifications).
 
     One subquery per table: a single query joining both would count each
     recipe line once per ingredient modification.
     """
     recipes_total = (
-        OrderRecipe.objects.filter(**{order_path: OuterRef("pk")})
+        OrderRecipe.objects.filter(
+            **{order_path: OuterRef("pk")}, **order_recipe_filters
+        )
         .values(order_path)  # GROUP BY
         .annotate(total=Sum(recipe_field))
         .values("total")
     )
     extras_path = f"order_recipe__{order_path}"
+    extras_filters = {f"order_recipe__{k}": v for k, v in order_recipe_filters.items()}
     extras_total = (
-        OrderIngredient.objects.filter(**{extras_path: OuterRef("pk")})
+        OrderIngredient.objects.filter(
+            **{extras_path: OuterRef("pk")}, **extras_filters
+        )
         .values(extras_path)  # GROUP BY
         .annotate(total=Sum(extra_field))
         .values("total")
@@ -221,6 +230,9 @@ class SyncView(APIView):
         return Response(status=status.HTTP_201_CREATED)
 
 
+DONE_ORDERS = {"order__status": OrderStatus.DONE}
+
+
 class AccountingView(RestaurantOwnerPermissionMixin, APIView):
     """Accounting of the synced shifts of a restaurant, over a period."""
 
@@ -285,6 +297,8 @@ class AccountingView(RestaurantOwnerPermissionMixin, APIView):
                     "order": str(order.pk),
                     "customer_name": order.customer_name,
                     "picking_time": timezone.localtime(order.picking_time),
+                    # Only DONE orders count: the others are listed for the record.
+                    "status": order.status,
                     "amount": order.amount,
                     "cost": order.cost,
                 }
@@ -303,12 +317,17 @@ class AccountingView(RestaurantOwnerPermissionMixin, APIView):
         on the number of shifts in its month."""
         shifts = (
             Shift.objects.filter(restaurant=self.restaurant)
+            # An order not done at the end of the shift was never paid: it
+            # does not count.
             .annotate(
-                revenue=snapshot_total("order__shift", "unit_price", "extra_price"),
-                material_cost=snapshot_total("order__shift", "unit_cost", "extra_cost"),
-                order_count=Count("order"),
-            )
-            .order_by("date")
+                revenue=snapshot_total(
+                    "order__shift", "unit_price", "extra_price", **DONE_ORDERS
+                ),
+                material_cost=snapshot_total(
+                    "order__shift", "unit_cost", "extra_cost", **DONE_ORDERS
+                ),
+                order_count=Count("order", filter=Q(order__status=OrderStatus.DONE)),
+            ).order_by("date")
         )
         return [
             ShiftSales(

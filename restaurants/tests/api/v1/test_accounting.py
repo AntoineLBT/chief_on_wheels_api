@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from restaurants.constants import OrderIngredientActionType
+from restaurants.constants import OrderIngredientActionType, OrderStatus
 from restaurants.models import Order, OrderIngredient, OrderRecipe, Shift
 from restaurants.tests.fixtures import (FixedChargeFixture,
                                         RecipeIngredientFixture)
@@ -40,11 +40,21 @@ class AccountingTestCase(TestCase, FixedChargeFixture, RecipeIngredientFixture):
         )
 
     def sale(
-        self, shift, price, cost, extra_price="0", extra_cost="0", picking_time=None
+        self,
+        shift,
+        price,
+        cost,
+        extra_price="0",
+        extra_cost="0",
+        picking_time=None,
+        status=OrderStatus.DONE,
     ):
         """One order of one recipe, with one ADD extra."""
         order = Order.objects.create(
-            shift=shift, customer_name="Jean", picking_time=picking_time or shift.date
+            shift=shift,
+            customer_name="Jean",
+            picking_time=picking_time or shift.date,
+            status=status,
         )
         order_recipe = OrderRecipe.objects.create(
             order=order,
@@ -142,6 +152,34 @@ class TestAccountingMonth(AccountingTestCase):
                 "order_count": 0,
             }
         ]
+
+
+class TestAccountingDoneOrders(AccountingTestCase):
+
+    def test_only_done_orders_count(self):
+        shift = self.shift(datetime(2026, 10, 10, 10, tzinfo=UTC))
+        self.sale(shift, "100", "30", extra_price="10", extra_cost="2")
+        self.sale(shift, "50", "10", status=OrderStatus.TODO)
+        self.sale(shift, "40", "8", status=OrderStatus.IN_PROGRESS)
+
+        totals = self.get({"period": "month", "date": "2026-10-01"}).json()["totals"]
+
+        assert totals["revenue_incl_vat"] == 110
+        assert totals["material_cost"] == 32
+        assert totals["order_count"] == 1
+
+    def test_shift_without_done_order_still_bears_its_charges(self):
+        self.any_fixed_charge(self.restaurant)  # 300 MONTHLY
+        shift = self.shift(datetime(2026, 10, 10, 10, tzinfo=UTC))
+        self.sale(shift, "50", "10", status=OrderStatus.TODO)
+
+        response = self.get({"period": "month", "date": "2026-10-01"}).json()
+
+        assert response["totals"]["shift_count"] == 1
+        assert response["totals"]["order_count"] == 0
+        assert response["breakdown"][0]["shift"] == str(shift.pk)
+        assert response["breakdown"][0]["fixed_charges"] == 300
+        assert response["breakdown"][0]["revenue_incl_vat"] == 0
 
 
 class TestAccountingWeek(AccountingTestCase):
@@ -254,6 +292,7 @@ class TestAccountingShift(AccountingTestCase):
                 "order": str(o1.pk),
                 "customer_name": "Jean",
                 "picking_time": "2026-10-10T12:00:00+02:00",
+                "status": "DONE",
                 "amount": 110,
                 "cost": 32,
             },
@@ -261,6 +300,7 @@ class TestAccountingShift(AccountingTestCase):
                 "order": str(o2.pk),
                 "customer_name": "Jean",
                 "picking_time": "2026-10-10T13:00:00+02:00",
+                "status": "DONE",
                 "amount": 55,
                 "cost": 12,
             },
@@ -273,6 +313,25 @@ class TestAccountingShift(AccountingTestCase):
         response = self.get({"period": "shift", "shift": str(shift.pk)})
 
         assert response.status_code == 404
+
+    def test_shift_lists_orders_that_do_not_count(self):
+        shift = self.shift(datetime(2026, 10, 10, 10, tzinfo=UTC))
+        done = self.sale(shift, "100", "30")
+        todo = self.sale(
+            shift,
+            "50",
+            "10",
+            picking_time=datetime(2026, 10, 10, 11, tzinfo=UTC),
+            status=OrderStatus.TODO,
+        )
+
+        response = self.get({"period": "shift", "shift": str(shift.pk)}).json()
+
+        assert response["totals"]["order_count"] == 1
+        assert [(row["order"], row["status"]) for row in response["breakdown"]] == [
+            (str(done.pk), "DONE"),
+            (str(todo.pk), "TODO"),
+        ]
 
 
 class TestAccountingShiftDay(AccountingTestCase):
