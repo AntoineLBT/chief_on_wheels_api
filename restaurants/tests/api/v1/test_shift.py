@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
@@ -88,6 +89,23 @@ class TestShiftCreate(TestCase, ShiftFixture):
 
         assert response.status_code == 201
         assert response.json()["restaurant"] == str(restaurant.pk)
+
+    def test_shift_create__snapshots_restaurant_vat_rate(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        restaurant.vat_rate = Decimal("10")
+        restaurant.save()
+        token = self.any_token(user)
+
+        response = self.client.post(
+            f"/restaurants/{restaurant.pk}/shifts/",
+            data={"date": timezone.now().isoformat(), "vat_rate": 20},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["vat_rate"] == 10
 
     def test_shift_create__owner_only(self):
         owner = self.any_user()

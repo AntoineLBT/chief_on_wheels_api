@@ -79,7 +79,7 @@ class SyncShiftSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Shift
-        fields = ["id", "restaurant", "date", "ended_at", "orders"]
+        fields = ["id", "restaurant", "date", "ended_at", "vat_rate", "orders"]
 
     def create(self, validated_data):
         instance_id = validated_data.pop("id")
@@ -111,8 +111,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
 class ShiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shift
-        fields = ["pk", "restaurant", "date", "ended_at"]
-        read_only_fields = ["pk", "restaurant"]
+        fields = ["pk", "restaurant", "date", "ended_at", "vat_rate"]
+        read_only_fields = ["pk", "restaurant", "vat_rate"]
 
 
 class OrderSerializer(serializers.ModelSerializer):

@@ -66,6 +66,9 @@ class ShiftViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = ShiftSerializer
     queryset = Shift.objects.select_related("restaurant")
 
+    def perform_create(self, serializer):
+        serializer.save(restaurant=self.restaurant, vat_rate=self.restaurant.vat_rate)
+
 
 class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
     serializer_class = OrderSerializer

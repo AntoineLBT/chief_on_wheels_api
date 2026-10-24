@@ -12,15 +12,20 @@ from .constants import (FixedChargeFrequency, IngredientUnit,
                         OrderIngredientActionType, OrderStatus)
 
 
+def vat_rate_field(**kwargs):
+    """A VAT rate in percent, between 0 and 100."""
+    return models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        **kwargs,
+    )
+
+
 class Restaurant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     name = models.CharField(max_length=255)
-    vat_rate = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal("0"),
-        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
-    )
+    vat_rate = vat_rate_field(default=Decimal("0"))
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
 
 
@@ -29,6 +34,9 @@ class Shift(models.Model):
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE)
     date = models.DateTimeField()
     ended_at = models.DateTimeField(null=True, blank=True)
+    # Snapshot of the restaurant rate when the shift started: changing the
+    # restaurant rate never changes past accounting.
+    vat_rate = vat_rate_field()
 
 
 class Order(models.Model):

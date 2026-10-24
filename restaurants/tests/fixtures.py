@@ -22,7 +22,7 @@ class RestaurantFixture(UserFixture):
 class ShiftFixture(RestaurantFixture):
 
     def any_shift_data(self):
-        return {"restaurant": None, "date": timezone.now()}
+        return {"restaurant": None, "date": timezone.now(), "vat_rate": Decimal("0")}
 
     def any_shift(self, restaurant: Restaurant | None = None):
 

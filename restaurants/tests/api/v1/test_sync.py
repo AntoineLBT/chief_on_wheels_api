@@ -20,6 +20,7 @@ class TestSync(TestCase, OrderFixture, RecipeFixture, IngredientFixture):
             "restaurant": f"{restaurant.pk}",
             "date": "2026-05-25T10:00:00Z",
             "ended_at": "2026-05-25T18:00:00Z",
+            "vat_rate": 5.5,
             "orders": [
                 {
                     "id": "22222222-2222-2222-2222-222222222222",
@@ -205,4 +206,39 @@ class TestSync(TestCase, OrderFixture, RecipeFixture, IngredientFixture):
                 response = self.post(user, data)
 
                 assert response.status_code == 400, (field, value)
+        assert not Shift.objects.exists()
+
+    def test_sync_persists_shift_vat_rate_as_sent(self):
+        user = self.any_user()
+        # The restaurant rate is 0: the shift keeps the rate it started with.
+        restaurant = self.any_restaurant(user)
+        data = self.any_data(
+            restaurant,
+            self.any_recipe(restaurant),
+            self.any_ingredient(None, restaurant),
+        )
+
+        response = self.post(user, data)
+
+        assert response.status_code == 201
+        assert Shift.objects.get().vat_rate == Decimal("5.5")
+
+    def test_sync_rejects_invalid_shift_vat_rate(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        recipe = self.any_recipe(restaurant)
+        ingredient = self.any_ingredient("tomato", restaurant)
+
+        for value in [None, -1, 100.01, 5.555]:
+            with self.subTest(value=value):
+                data = self.any_data(restaurant, recipe, ingredient)
+                if value is None:
+                    del data["vat_rate"]
+                else:
+                    data["vat_rate"] = value
+
+                response = self.post(user, data)
+
+                assert response.status_code == 400
+                assert "vat_rate" in response.json()
         assert not Shift.objects.exists()
