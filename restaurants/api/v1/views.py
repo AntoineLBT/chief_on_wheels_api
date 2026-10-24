@@ -22,9 +22,8 @@ from restaurants.api.v1.serializers import (AccountingQuerySerializer,
                                             FixedChargeReviseSerializer,
                                             FixedChargeSerializer,
                                             IngredientSerializer,
-                                            OrderSerializer, RecipeSerializer,
+                                            RecipeSerializer,
                                             RestaurantSerializer,
-                                            ShiftSerializer,
                                             SyncShiftSerializer)
 from restaurants.constants import OrderStatus
 from restaurants.models import (FixedCharge, Ingredient, Order,
@@ -81,43 +80,6 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
-
-
-class ShiftViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
-    serializer_class = ShiftSerializer
-    queryset = Shift.objects.select_related("restaurant")
-
-    def perform_create(self, serializer):
-        serializer.save(restaurant=self.restaurant, vat_rate=self.restaurant.vat_rate)
-
-
-class OrderViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):
-    serializer_class = OrderSerializer
-
-    def check_restaurant_owner(self, restaurant, user):
-        if restaurant.owner != user:
-            raise NotFound("Restaurant not found")
-
-    def perform_create(self, serializer):
-        restaurant = serializer.validated_data.get("shift").restaurant
-        self.check_restaurant_owner(restaurant, self.request.user)
-        serializer.save()
-
-    def perform_update(self, serializer):
-        restaurant = serializer.validated_data.get("shift").restaurant
-        self.check_restaurant_owner(restaurant, self.request.user)
-        serializer.save()
-
-    def get_queryset(self):
-        shift_pk = self.kwargs.get("shift_pk")
-
-        return (
-            Order.objects.filter(
-                shift__pk=shift_pk, shift__restaurant__owner=self.request.user
-            )
-            .select_related("shift", "shift__restaurant")
-            .annotate(amount=order_amount())
-        )
 
 
 class RecipeViewSet(RestaurantOwnerPermissionMixin, viewsets.ModelViewSet):

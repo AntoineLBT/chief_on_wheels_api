@@ -117,23 +117,6 @@ class RestaurantSerializer(serializers.ModelSerializer):
         read_only_fields = ["pk"]
 
 
-class ShiftSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Shift
-        fields = ["pk", "restaurant", "date", "ended_at", "vat_rate"]
-        read_only_fields = ["pk", "restaurant", "vat_rate"]
-
-
-class OrderSerializer(serializers.ModelSerializer):
-
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = Order
-        fields = ["pk", "shift", "customer_name", "picking_time", "status", "amount"]
-        read_only_fields = ["pk", "amount"]
-
-
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredient
@@ -229,20 +212,6 @@ class IngredientSerializer(serializers.ModelSerializer):
                 {field: "Required when has_extra is true." for field in missing}
             )
         return attrs
-
-
-class OrderRecipeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderRecipe
-        fields = ["pk", "order", "recipe"]
-        read_only_fields = ["pk"]
-
-
-class OrderIngredientSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OrderIngredient
-        fields = ["pk", "order_recipe", "ingredient", "action_type"]
-        read_only_fields = ["pk"]
 
 
 class FixedChargeSerializer(serializers.ModelSerializer):

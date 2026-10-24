@@ -278,3 +278,16 @@ class TestSync(TestCase, OrderFixture, RecipeFixture, IngredientFixture):
         assert response.status_code == 400
         assert response.json() == {"ended_at": ["A shift cannot end before it starts."]}
         assert not Shift.objects.exists()
+
+    def test_shifts_and_orders_only_reach_the_server_through_sync(self):
+        user = self.any_user()
+        order = self.any_order(self.any_restaurant(user))
+        shift = order.shift
+        token = self.any_token(user)
+        base = f"/restaurants/{shift.restaurant.pk}/shifts/"
+
+        for url in [base, f"{base}{shift.pk}/", f"{base}{shift.pk}/orders/"]:
+            with self.subTest(url=url):
+                response = self.client.get(url, HTTP_AUTHORIZATION=f"Bearer {token}")
+
+                assert response.status_code == 404
