@@ -75,11 +75,20 @@ class SyncOrderSerializer(serializers.ModelSerializer):
 
 class SyncShiftSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField()
+    # Only closed shifts are synced: once on the server, a shift never changes.
+    ended_at = serializers.DateTimeField()
     orders = SyncOrderSerializer(many=True)
 
     class Meta:
         model = Shift
         fields = ["id", "restaurant", "date", "ended_at", "vat_rate", "orders"]
+
+    def validate(self, attrs):
+        if attrs["ended_at"] < attrs["date"]:
+            raise serializers.ValidationError(
+                {"ended_at": "A shift cannot end before it starts."}
+            )
+        return attrs
 
     def create(self, validated_data):
         instance_id = validated_data.pop("id")

@@ -242,3 +242,39 @@ class TestSync(TestCase, OrderFixture, RecipeFixture, IngredientFixture):
                 assert response.status_code == 400
                 assert "vat_rate" in response.json()
         assert not Shift.objects.exists()
+
+    def test_sync_rejects_open_shift(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        recipe = self.any_recipe(restaurant)
+        ingredient = self.any_ingredient("tomato", restaurant)
+
+        for value in [None, "missing"]:
+            with self.subTest(ended_at=value):
+                data = self.any_data(restaurant, recipe, ingredient)
+                if value == "missing":
+                    del data["ended_at"]
+                else:
+                    data["ended_at"] = value
+
+                response = self.post(user, data)
+
+                assert response.status_code == 400
+                assert "ended_at" in response.json()
+        assert not Shift.objects.exists()
+
+    def test_sync_rejects_shift_ending_before_it_starts(self):
+        user = self.any_user()
+        restaurant = self.any_restaurant(user)
+        data = self.any_data(
+            restaurant,
+            self.any_recipe(restaurant),
+            self.any_ingredient(None, restaurant),
+        )
+        data["ended_at"] = "2026-05-25T09:59:59Z"
+
+        response = self.post(user, data)
+
+        assert response.status_code == 400
+        assert response.json() == {"ended_at": ["A shift cannot end before it starts."]}
+        assert not Shift.objects.exists()
