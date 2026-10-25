@@ -1,0 +1,12 @@
+.env
+.git
+.tox
+.vscode
+.mypy_cache
+.coverage
+htmlcov
+staticfiles
+**/__pycache__
+**/*.pyc
+.DS_Store
+.dump

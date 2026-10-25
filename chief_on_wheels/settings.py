@@ -10,27 +10,47 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import dotenv_values
-
-config = dotenv_values(".env")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# The local .env file, overridden by real environment variables (Docker, CI).
+config = {**dotenv_values(BASE_DIR / ".env"), **os.environ}
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+IS_DEV = config.get("env") == "dev"
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-)!%4mt0$tn-o2i4z&ej&@!_sr-jugy_yw8munnr)s+&uz+kj^f"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+def config_list(name, default=""):
+    """Comma-separated variable, e.g. ALLOWED_HOSTS=a.com,b.com."""
+    items = (item.strip() for item in config.get(name, default).split(","))
+    return [item for item in items if item]
 
-ALLOWED_HOSTS = []
+
+# Deployment checklist: https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+
+SECRET_KEY = config.get("SECRET_KEY") or (
+    "django-insecure-)!%4mt0$tn-o2i4z&ej&@!_sr-jugy_yw8munnr)s+&uz+kj^f"
+    if IS_DEV
+    else None
+)
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY is required outside dev (env=dev).")
+
+DEBUG = IS_DEV
+
+ALLOWED_HOSTS = config_list("ALLOWED_HOSTS")
+
+# Behind Caddy, which terminates TLS and sets X-Forwarded-Proto.
+# Safe only because Gunicorn is not reachable without going through Caddy.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not IS_DEV
+CSRF_COOKIE_SECURE = not IS_DEV
 
 
 # Application definition
@@ -52,6 +72,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -61,9 +82,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = config_list(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:5173" if IS_DEV else ""
+)
 
 ROOT_URLCONF = "chief_on_wheels.urls"
 
@@ -135,6 +156,8 @@ USE_I18N = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+# Collected at image build time, served by WhiteNoise (admin, Swagger UI).
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -153,9 +176,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=5 if config.get("env") != "dev" else 1440
-    ),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1440 if IS_DEV else 5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
