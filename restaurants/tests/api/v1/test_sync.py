@@ -5,8 +5,7 @@ from rest_framework.test import APIClient
 
 from restaurants.constants import OrderIngredientActionType
 from restaurants.models import Order, OrderIngredient, OrderRecipe, Shift
-from restaurants.tests.fixtures import (IngredientFixture, OrderFixture,
-                                        RecipeFixture)
+from restaurants.tests.fixtures import IngredientFixture, OrderFixture, RecipeFixture
 
 
 class TestSync(TestCase, OrderFixture, RecipeFixture, IngredientFixture):

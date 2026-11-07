@@ -7,8 +7,16 @@ from restaurants.constants import FixedChargeFrequency, IngredientUnit
 from users.models import User
 from users.tests.fixtures import UserFixture
 
-from ..models import (FixedCharge, Ingredient, Order, OrderRecipe, Recipe,
-                      RecipeIngredient, Restaurant, Shift)
+from ..models import (
+    FixedCharge,
+    Ingredient,
+    Order,
+    OrderRecipe,
+    Recipe,
+    RecipeIngredient,
+    Restaurant,
+    Shift,
+)
 
 
 class RestaurantFixture(UserFixture):

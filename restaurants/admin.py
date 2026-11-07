@@ -1,7 +1,16 @@
 from django.contrib import admin
 
-from .models import (FixedCharge, Ingredient, Order, OrderIngredient,
-                     OrderRecipe, Recipe, RecipeIngredient, Restaurant, Shift)
+from .models import (
+    FixedCharge,
+    Ingredient,
+    Order,
+    OrderIngredient,
+    OrderRecipe,
+    Recipe,
+    RecipeIngredient,
+    Restaurant,
+    Shift,
+)
 
 
 @admin.register(Restaurant)

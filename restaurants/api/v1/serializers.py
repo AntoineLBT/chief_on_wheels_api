@@ -2,9 +2,17 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from restaurants.models import (FixedCharge, Ingredient, Order,
-                                OrderIngredient, OrderRecipe, Recipe,
-                                RecipeIngredient, Restaurant, Shift)
+from restaurants.models import (
+    FixedCharge,
+    Ingredient,
+    Order,
+    OrderIngredient,
+    OrderRecipe,
+    Recipe,
+    RecipeIngredient,
+    Restaurant,
+    Shift,
+)
 
 
 class SyncOrderIngredientSerializer(serializers.ModelSerializer):

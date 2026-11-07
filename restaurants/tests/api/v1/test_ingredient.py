@@ -5,8 +5,11 @@ from rest_framework.test import APIClient
 
 from restaurants.constants import OrderIngredientActionType
 from restaurants.models import OrderIngredient
-from restaurants.tests.fixtures import (IngredientFixture, OrderRecipeFixture,
-                                        RecipeIngredientFixture)
+from restaurants.tests.fixtures import (
+    IngredientFixture,
+    OrderRecipeFixture,
+    RecipeIngredientFixture,
+)
 
 
 class TestIngredientList(TestCase, IngredientFixture):

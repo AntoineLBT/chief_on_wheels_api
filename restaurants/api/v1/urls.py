@@ -2,9 +2,14 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested.routers import NestedDefaultRouter
 
-from restaurants.api.v1.views import (AccountingView, FixedChargeViewSet,
-                                      IngredientViewSet, RecipeViewSet,
-                                      RestaurantViewSet, SyncView)
+from restaurants.api.v1.views import (
+    AccountingView,
+    FixedChargeViewSet,
+    IngredientViewSet,
+    RecipeViewSet,
+    RestaurantViewSet,
+    SyncView,
+)
 
 router = DefaultRouter()
 router.register(r"restaurants", RestaurantViewSet, basename="restaurant")

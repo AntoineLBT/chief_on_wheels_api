@@ -8,8 +8,7 @@ from rest_framework.test import APIClient
 
 from restaurants.constants import OrderIngredientActionType, OrderStatus
 from restaurants.models import Order, OrderIngredient, OrderRecipe, Shift
-from restaurants.tests.fixtures import (FixedChargeFixture,
-                                        RecipeIngredientFixture)
+from restaurants.tests.fixtures import FixedChargeFixture, RecipeIngredientFixture
 
 UTC = ZoneInfo("UTC")
 

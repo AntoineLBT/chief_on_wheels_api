@@ -3,8 +3,16 @@ from decimal import Decimal
 from typing import cast
 
 from django.db import transaction
-from django.db.models import (Count, DecimalField, ExpressionWrapper, OuterRef,
-                              Q, RestrictedError, Subquery, Sum)
+from django.db.models import (
+    Count,
+    DecimalField,
+    ExpressionWrapper,
+    OuterRef,
+    Q,
+    RestrictedError,
+    Subquery,
+    Sum,
+)
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -13,22 +21,38 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from restaurants.accounting import (Charge, ShiftSales, months_of,
-                                    period_bounds, period_figures,
-                                    period_status, shift_figures, shift_rows)
+from restaurants.accounting import (
+    Charge,
+    ShiftSales,
+    months_of,
+    period_bounds,
+    period_figures,
+    period_status,
+    shift_figures,
+    shift_rows,
+)
 from restaurants.api.v1.mixins import RestaurantOwnerPermissionMixin
-from restaurants.api.v1.serializers import (AccountingQuerySerializer,
-                                            FixedChargeCloseSerializer,
-                                            FixedChargeReviseSerializer,
-                                            FixedChargeSerializer,
-                                            IngredientSerializer,
-                                            RecipeSerializer,
-                                            RestaurantSerializer,
-                                            SyncShiftSerializer)
+from restaurants.api.v1.serializers import (
+    AccountingQuerySerializer,
+    FixedChargeCloseSerializer,
+    FixedChargeReviseSerializer,
+    FixedChargeSerializer,
+    IngredientSerializer,
+    RecipeSerializer,
+    RestaurantSerializer,
+    SyncShiftSerializer,
+)
 from restaurants.constants import OrderStatus
-from restaurants.models import (FixedCharge, Ingredient, Order,
-                                OrderIngredient, OrderRecipe, Recipe,
-                                Restaurant, Shift)
+from restaurants.models import (
+    FixedCharge,
+    Ingredient,
+    Order,
+    OrderIngredient,
+    OrderRecipe,
+    Recipe,
+    Restaurant,
+    Shift,
+)
 
 
 def snapshot_total(

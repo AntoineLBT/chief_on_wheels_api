@@ -3,8 +3,12 @@ from decimal import Decimal
 
 from django.test import SimpleTestCase
 
-from restaurants.accounting import (Charge, cents, period_fixed_charges,
-                                    shift_fixed_charges)
+from restaurants.accounting import (
+    Charge,
+    cents,
+    period_fixed_charges,
+    shift_fixed_charges,
+)
 from restaurants.constants import FixedChargeFrequency
 
 OCTOBER = (date(2026, 10, 1), date(2026, 10, 31))

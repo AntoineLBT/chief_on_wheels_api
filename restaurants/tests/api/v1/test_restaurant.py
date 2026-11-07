@@ -5,11 +5,13 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from restaurants.constants import OrderIngredientActionType
-from restaurants.models import (FixedCharge, Ingredient, OrderIngredient,
-                                OrderRecipe)
-from restaurants.tests.fixtures import (FixedChargeFixture, OrderFixture,
-                                        RecipeIngredientFixture,
-                                        RestaurantFixture)
+from restaurants.models import FixedCharge, Ingredient, OrderIngredient, OrderRecipe
+from restaurants.tests.fixtures import (
+    FixedChargeFixture,
+    OrderFixture,
+    RecipeIngredientFixture,
+    RestaurantFixture,
+)
 
 
 class TestRestaurantList(TestCase, RestaurantFixture):

@@ -8,8 +8,12 @@ from django.utils import timezone
 
 from users.models import User
 
-from .constants import (FixedChargeFrequency, IngredientUnit,
-                        OrderIngredientActionType, OrderStatus)
+from .constants import (
+    FixedChargeFrequency,
+    IngredientUnit,
+    OrderIngredientActionType,
+    OrderStatus,
+)
 
 
 def vat_rate_field(**kwargs):
