@@ -177,7 +177,9 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1440 if IS_DEV else 5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    # Long enough for a weekly (or rarer) sync without a new login. No rotation:
+    # the custom /auth/refresh/ view only returns an access token.
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=90),
 }
 
 SPECTACULAR_SETTINGS = {
